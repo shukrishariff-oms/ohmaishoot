@@ -24,10 +24,15 @@ os.makedirs(STORAGE_DIR, exist_ok=True)
 
 app = FastAPI(title="OhMaiShoot API")
 
-# Configure CORS for local development
+# Configure CORS
+origins_env = os.getenv("CORS_ORIGINS", "")
+origins = [origin.strip() for origin in origins_env.split(",") if origin.strip()]
+if not origins:
+    origins = ["http://localhost:5173", "http://localhost:3000"] # Fallback for local
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -43,9 +48,9 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 day
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-# Hardcoded Admin credentials (local use)
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "admin123"
+# Admin credentials (configured via env variables in production)
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()

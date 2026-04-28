@@ -66,3 +66,19 @@ From the Admin Dashboard, you can add new events, upload cover images, set the e
 - `backend/data/`: Where the `ohmaishoot.db` SQLite database is saved.
 - `backend/storage/covers/`: Uploaded cover images are saved here and served statically.
 - `frontend/src/pages/`: Contains `Home.jsx` (Landing Page) and `Admin.jsx` (Dashboard).
+
+## Deploying to Coolify (Docker Compose)
+
+This project is fully dockerized and ready to be deployed on Coolify using the `docker-compose.yml` file.
+
+1. Create a new Application in Coolify and connect this GitHub repository.
+2. Select **Docker Compose** as the Build Pack.
+3. In the Configuration tab, set the following Environment Variables:
+   - `VITE_API_URL`: The public URL of the backend (e.g., `https://api.ohmaishoot.com`). *You may need to deploy once to get the URL, then set this and deploy again.*
+   - `CORS_ORIGINS`: The public URL of the frontend (e.g., `https://ohmaishoot.com`).
+   - `ADMIN_USERNAME`: Your custom admin username.
+   - `ADMIN_PASSWORD`: Your custom admin password.
+4. Coolify will automatically read the `docker-compose.yml`, build the `backend` and `frontend` images, and mount the persistent volumes (`ohmaishoot-db` and `ohmaishoot-covers`) so you don't lose data on redeploys.
+5. In Coolify's server/network settings, configure your domains to route traffic:
+   - Map `https://ohmaishoot.com` to the `frontend` service port 80.
+   - Map `https://api.ohmaishoot.com` to the `backend` service port 8000.
