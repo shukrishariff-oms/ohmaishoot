@@ -4,10 +4,10 @@ services:
   backend:
     build:
       context: ./backend
-    # Coolify will map this port automatically based on configuration, 
-    # but we expose it here for local docker-compose testing if needed.
-    ports:
-      - "8000:8000"
+    # We expose the port to the internal Docker network instead of mapping it to the host
+    # to avoid port allocation conflicts on Coolify.
+    expose:
+      - "8000"
     volumes:
       # We map persistent volumes to the paths used by the Python application
       - ohmaishoot-db:/app/data
@@ -22,9 +22,6 @@ services:
   frontend:
     build:
       context: ./frontend
-      args:
-        # Pass the API URL to Vite during build time
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
     ports:
       - "80:80"
     depends_on:
