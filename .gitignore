@@ -1,0 +1,11 @@
+node_modules/
+__pycache__/
+*.pyc
+.env
+backend/data/ohmaishoot.db
+backend/storage/covers/*
+!backend/storage/covers/.gitkeep
+.DS_Store
+dist/
+build/
+.vite/
