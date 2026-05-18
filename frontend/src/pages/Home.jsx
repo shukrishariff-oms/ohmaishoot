@@ -1,128 +1,127 @@
 import { useState, useEffect } from 'react';
 import { getPublishedAlbums, getCoverUrl } from '../services/api';
-import { Camera, MapPin, Calendar, ExternalLink, ArrowRight, Aperture, Search, Zap, Star, Smartphone, Image as ImageIcon } from 'lucide-react';
+import { Camera, MapPin, Calendar, ArrowRight, Aperture, Mail, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
+
+// Inline Instagram SVG (lucide-react v1.11.0 doesn't export Instagram)
+const Instagram = ({ className = '', ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    {...props}
+  >
+    <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+  </svg>
+);
+
+const IG_HANDLE = 'ohmaishoot';
+const IG_URL = `https://instagram.com/${IG_HANDLE}`;
+const EMAIL = 'ohmaishoot@gmail.com';
+const MARATHONHUB_URL = 'https://marathonhub.ohmaishoot.com';
 
 export default function Home() {
   const [albums, setAlbums] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadAlbums();
+    let mounted = true;
+    (async () => {
+      try {
+        const data = await getPublishedAlbums();
+        if (mounted) setAlbums(data || []);
+      } catch (e) {
+        console.error('Failed to load albums', e);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
   }, []);
 
-  const loadAlbums = async () => {
-    try {
-      const data = await getPublishedAlbums();
-      setAlbums(data);
-    } catch (error) {
-      console.error("Failed to load albums", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Use cover of latest album as hero background (fallback to gradient if none)
+  const heroAlbum = albums[0];
+  const heroBg = heroAlbum?.cover_image
+    ? getCoverUrl(heroAlbum.cover_image)
+    : null;
 
   return (
     <div className="bg-[#fafafa] min-h-screen font-sans selection:bg-black selection:text-white overflow-x-hidden">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-black/40 backdrop-blur-md border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-2 group cursor-pointer text-white">
-            <div className="w-10 h-10 bg-white text-black rounded-xl flex items-center justify-center transform transition-transform group-hover:scale-105 group-hover:rotate-3 shadow-lg">
-              <Aperture className="w-6 h-6" />
+      {/* ─── NAV ─── */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/85 backdrop-blur-md border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-black">
+            <div className="w-9 h-9 bg-black text-white rounded-lg flex items-center justify-center shadow-sm">
+              <Aperture className="w-5 h-5" />
             </div>
-            <span className="text-xl font-black tracking-tighter">OhMaiShoot.</span>
+            <span className="text-lg font-black tracking-tighter">OhMaiShoot.</span>
           </div>
-          <Link to="/admin" className="text-sm font-semibold text-white/70 hover:text-white transition-colors">
-            Admin Login
-          </Link>
+          <div className="flex items-center gap-5">
+            <a
+              href={IG_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-semibold text-gray-600 hover:text-black transition-colors flex items-center gap-1.5"
+              aria-label="Instagram"
+            >
+              <Instagram className="w-4 h-4" />
+              <span className="hidden sm:inline">@{IG_HANDLE}</span>
+            </a>
+            <a
+              href={`mailto:${EMAIL}`}
+              className="text-sm font-semibold text-gray-600 hover:text-black transition-colors flex items-center gap-1.5"
+              aria-label="Contact"
+            >
+              <Mail className="w-4 h-4" />
+              <span className="hidden sm:inline">Contact</span>
+            </a>
+          </div>
         </div>
       </nav>
 
-      {/* 1. CINEMATIC HERO SECTION */}
-      <header className="relative w-full h-screen min-h-[600px] flex flex-col items-center justify-center overflow-hidden">
-        {/* Background Image */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: `url('https://images.unsplash.com/photo-1552674605-db6ffd4facb5?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80')` }}
-        />
-        {/* Dark Overlay 70% */}
-        <div className="absolute inset-0 bg-black/70" />
-        
-        {/* Content */}
-        <div className="relative z-10 w-full max-w-5xl mx-auto px-6 flex flex-col items-center text-center mt-10">
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-black text-white tracking-tighter mb-4 animate-fade-in-up">
+      {/* ─── BRAND STRIP (compact replacement for hero) ─── */}
+      <section className="pt-24 pb-10 md:pt-28 md:pb-12 bg-white border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-6 text-center">
+          <span className="inline-block text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase text-gray-400 mb-3">
+            Marathon Photography Malaysia
+          </span>
+          <h1 className="text-3xl md:text-5xl font-black tracking-tighter text-gray-900 leading-none mb-2">
             Relive Your Run.
           </h1>
-          <p className="text-xl md:text-2xl text-gray-300 font-medium mb-12 animate-fade-in-up delay-100">
+          <p className="text-sm md:text-base text-gray-500 font-medium">
             Find your moment. Own your finish line.
           </p>
-
-          {/* Step Guide Text */}
-          <div className="flex flex-col sm:flex-row items-center gap-4 text-lg font-bold text-white mb-10 animate-fade-in-up delay-200">
-            <div className="flex items-center gap-3 bg-white/10 backdrop-blur-sm px-6 py-3 rounded-full border border-white/20 shadow-sm">
-              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-white text-black text-sm">1</span>
-              <span>Find your event</span>
-            </div>
-            <ArrowRight className="w-5 h-5 text-white/50 hidden sm:block" />
-            <div className="flex items-center gap-3 bg-white/10 backdrop-blur-sm px-6 py-3 rounded-full border border-white/20 shadow-sm">
-              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-white text-black text-sm">2</span>
-              <span>Explore your photos</span>
-            </div>
-          </div>
-
-          {/* CTA Buttons */}
-          <div className="flex flex-col items-center animate-fade-in-up delay-300">
-            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto mb-6">
-              <a href="#events" className="flex items-center justify-center gap-2 bg-white text-black px-10 py-4 rounded-full font-bold hover:bg-gray-200 transition-transform hover:scale-105 shadow-xl">
-                <Camera className="w-5 h-5" />
-                Browse Events
-              </a>
-            </div>
-            <p className="text-sm font-semibold text-white/60 tracking-wide mb-2">
-              All photos are organized by event for easy browsing
-            </p>
-            <p className="text-sm font-medium text-white/80">
-              📸 Photos from recent marathon events are now available
-            </p>
-          </div>
-        </div>
-
-        {/* Scroll Indicator */}
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-white/50 animate-bounce">
-          <ArrowRight className="w-6 h-6 rotate-90" />
-        </div>
-      </header>
-
-      {/* 2. SOCIAL PROOF STRIP */}
-      <section className="bg-black py-8 border-b border-white/10">
-        <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8 text-center divide-y md:divide-y-0 md:divide-x divide-white/10">
-          <div className="flex flex-col items-center pt-4 md:pt-0">
-            <div className="text-3xl font-black text-white mb-1">10,000+</div>
-            <div className="text-sm font-semibold text-gray-400 uppercase tracking-widest">Photos Captured</div>
-          </div>
-          <div className="flex flex-col items-center pt-4 md:pt-0">
-            <div className="text-3xl font-black text-white mb-1">50+</div>
-            <div className="text-sm font-semibold text-gray-400 uppercase tracking-widest">Events Covered</div>
-          </div>
-          <div className="flex flex-col items-center pt-4 md:pt-0">
-            <div className="text-3xl font-black text-white mb-1">5,000+</div>
-            <div className="text-sm font-semibold text-gray-400 uppercase tracking-widest">Runners Photographed</div>
-          </div>
         </div>
       </section>
 
-      {/* 3. FEATURED EVENTS (MAIN SECTION) */}
-      <main id="events" className="max-w-7xl mx-auto px-6 py-32 scroll-mt-20">
-        <div className="flex items-end justify-between mb-16">
+      {/* ─── FEATURED EVENTS ─── */}
+      <main id="events" className="max-w-7xl mx-auto px-6 py-24 md:py-32 scroll-mt-20">
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-12 md:mb-16 gap-4">
           <div>
-            <h2 className="text-3xl md:text-5xl font-black tracking-tighter text-gray-900 mb-2">
+            <span className="text-xs font-bold tracking-[0.3em] uppercase text-gray-400 mb-3 block">
+              Race Galleries
+            </span>
+            <h2 className="text-3xl md:text-5xl font-black tracking-tighter text-gray-900">
               Featured Events
             </h2>
-            <p className="text-lg text-gray-500 font-medium">Browse our most recent marathon coverages.</p>
+            <p className="text-base md:text-lg text-gray-500 font-medium mt-2">
+              Browse the most recent marathon coverages.
+            </p>
           </div>
+          {!loading && albums.length > 0 && (
+            <span className="text-sm font-semibold text-gray-400">
+              {albums.length} {albums.length === 1 ? 'event' : 'events'}
+            </span>
+          )}
         </div>
-        
+
         {loading ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-black" />
@@ -136,63 +135,52 @@ export default function Home() {
             <p className="text-gray-500">Check back later for new marathon photos.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10">
             {albums.map((album) => (
-              <a 
-                key={album.id} 
+              <a
+                key={album.id}
                 href={album.album_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group bg-white rounded-3xl overflow-hidden flex flex-col border border-gray-200/60 shadow-sm hover:shadow-2xl hover:shadow-black/5 hover:-translate-y-2 transition-all duration-500 cursor-pointer block"
+                className="group bg-white rounded-2xl overflow-hidden flex flex-col border border-gray-200/60 shadow-sm hover:shadow-2xl hover:shadow-black/10 hover:-translate-y-1.5 transition-all duration-500"
               >
-                <div className="relative aspect-video overflow-hidden bg-black">
-                  <img 
-                    src={getCoverUrl(album.cover_image)} 
+                <div className="relative aspect-[4/3] overflow-hidden bg-zinc-900">
+                  <img
+                    src={getCoverUrl(album.cover_image)}
                     alt={album.event_name}
                     loading="lazy"
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-90 group-hover:opacity-100"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/0 opacity-80 group-hover:opacity-100 transition-opacity duration-300" />
-                  
-                  {/* Floating Date Badge */}
-                  <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md text-black px-3 py-1.5 rounded-lg font-bold text-xs shadow-lg transform -translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
-                    {album.event_date.split('-')[0]}
-                  </div>
-                  {/* Photos Available Badge */}
-                  <div className="absolute top-4 right-4 bg-black/80 text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-md shadow-sm pointer-events-none border border-white/10">
-                    Photos Available
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+
+                  <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-sm text-black px-3 py-1 rounded-md font-bold text-xs shadow-sm">
+                    {album.event_date?.split('-')[0] || ''}
                   </div>
 
-                  {/* Title overlay on image */}
-                  <div className="absolute bottom-4 left-4 right-4">
-                    <h3 className="text-xl md:text-2xl font-bold text-white leading-tight line-clamp-2 drop-shadow-md">
+                  <div className="absolute bottom-0 left-0 right-0 p-5">
+                    <h3 className="text-xl md:text-2xl font-bold text-white leading-tight line-clamp-2 drop-shadow-lg mb-2">
                       {album.event_name}
                     </h3>
+                    <div className="flex items-center gap-3 text-xs text-white/80 font-semibold">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5" />
+                        {album.event_date}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                
-                <div className="p-6 flex flex-col flex-grow bg-white">
-                  <div className="space-y-3 mb-6 text-sm font-semibold text-gray-500">
-                    <div className="flex items-center gap-3">
-                      <Calendar className="w-4 h-4 text-gray-400" />
-                      <span>{album.event_date}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <MapPin className="w-4 h-4 text-gray-400" />
-                      <span className="truncate">{album.location}</span>
-                    </div>
+
+                <div className="p-5 flex flex-col bg-white">
+                  <div className="flex items-center gap-2 text-sm text-gray-500 font-semibold mb-4 min-h-[1.25rem]">
+                    <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <span className="truncate">{album.location || '—'}</span>
                   </div>
-                  
-                  <div className="mt-auto">
-                    <div className="text-xs font-bold text-orange-600 mb-2 flex items-center gap-1">
-                      🔥 Recently Uploaded
-                    </div>
-                    <div 
-                      className="group/btn flex items-center justify-center gap-2 w-full bg-gray-50 text-black py-4 rounded-xl font-bold border border-gray-200 group-hover:bg-black group-hover:text-white group-hover:border-black group-hover:-translate-y-1 active:scale-[0.98] transition-all duration-300"
-                    >
-                      <span>Find My Race Photos</span>
-                      <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
-                    </div>
+
+                  <div className="flex items-center justify-between gap-2 pt-4 border-t border-gray-100">
+                    <span className="text-sm font-bold text-black">
+                      View Photos
+                    </span>
+                    <ArrowRight className="w-4 h-4 text-black group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>
               </a>
@@ -201,66 +189,47 @@ export default function Home() {
         )}
       </main>
 
-      {/* 4. WHY OHMAISHOOT (TRUST SECTION) */}
-      <section className="bg-white py-24 border-y border-gray-100">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-black tracking-tighter text-gray-900 mb-4">
-              Why Runners Choose OhMaiShoot
-            </h2>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 text-center">
-            <div className="flex flex-col items-center group">
-              <div className="w-20 h-20 bg-gray-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 group-hover:bg-black group-hover:text-white">
-                <Zap className="w-8 h-8" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Fast Delivery</h3>
-              <p className="text-gray-500 font-medium">Your photos, ready shortly after the race.</p>
-            </div>
-            
-            <div className="flex flex-col items-center group">
-              <div className="w-20 h-20 bg-gray-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 group-hover:bg-black group-hover:text-white">
-                <ImageIcon className="w-8 h-8" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">High Quality</h3>
-              <p className="text-gray-500 font-medium">Sharp, professional marathon photography.</p>
-            </div>
-
-            <div className="flex flex-col items-center group">
-              <div className="w-20 h-20 bg-gray-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 group-hover:bg-black group-hover:text-white">
-                <Smartphone className="w-8 h-8" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Easy Access</h3>
-              <p className="text-gray-500 font-medium">Find your photos instantly via PhotoHawk.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 5. EXPERIENCE SECTION (EMOTIONAL) */}
-      <section className="bg-[#fafafa]">
+      {/* ─── EXPERIENCE / EMOTIONAL ─── */}
+      <section className="bg-white border-y border-gray-100">
         <div className="max-w-7xl mx-auto px-6 py-24">
-          <div className="bg-black rounded-[2.5rem] overflow-hidden flex flex-col md:flex-row shadow-2xl">
-            {/* Left Image */}
-            <div className="w-full md:w-1/2 relative min-h-[400px]">
-              <div 
+          <div className="bg-black rounded-[2rem] overflow-hidden flex flex-col md:flex-row shadow-2xl">
+            <div className="w-full md:w-1/2 relative min-h-[300px] md:min-h-[420px]">
+              <div
                 className="absolute inset-0 bg-cover bg-center"
-                style={{ backgroundImage: `url('https://images.unsplash.com/photo-1530549387789-4c1017266635?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80')` }}
+                style={{
+                  backgroundImage: heroBg
+                    ? `url('${heroBg}')`
+                    : `url('https://images.unsplash.com/photo-1530549387789-4c1017266635?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80')`
+                }}
               />
+              <div className="absolute inset-0 bg-gradient-to-r from-black/0 to-black/40" />
             </div>
-            {/* Right Content */}
-            <div className="w-full md:w-1/2 p-12 md:p-20 flex flex-col justify-center bg-black text-white">
-              <h2 className="text-4xl md:text-5xl font-black tracking-tighter mb-6 leading-tight">
-                Every race tells a story. <br/>
+            <div className="w-full md:w-1/2 p-10 md:p-16 flex flex-col justify-center bg-black text-white">
+              <span className="text-xs font-bold tracking-[0.3em] uppercase text-white/50 mb-4">
+                The Story
+              </span>
+              <h2 className="text-3xl md:text-5xl font-black tracking-tighter mb-5 leading-tight">
+                Every race tells a story.<br />
                 <span className="text-gray-400">We capture yours.</span>
               </h2>
-              <p className="text-lg text-gray-400 mb-10 font-medium leading-relaxed">
-                The sweat, the tears, the triumph at the finish line. We freeze those fleeting emotions into memories that last forever.
+              <p className="text-base md:text-lg text-gray-400 mb-8 font-medium leading-relaxed">
+                The sweat, the tears, the triumph at the finish line. We freeze fleeting emotions into memories that last forever.
               </p>
-              <div>
-                <a href="#events" className="inline-flex items-center justify-center gap-2 bg-white text-black px-8 py-4 rounded-full font-bold hover:bg-gray-200 transition-transform hover:scale-105 shadow-xl">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <a
+                  href="#events"
+                  className="inline-flex items-center justify-center gap-2 bg-white text-black px-7 py-3.5 rounded-full font-bold hover:bg-gray-200 transition-transform hover:scale-105"
+                >
                   Find My Race Photos
+                </a>
+                <a
+                  href={IG_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 bg-white/10 backdrop-blur text-white px-7 py-3.5 rounded-full font-bold border border-white/20 hover:bg-white/20 transition-all"
+                >
+                  <Instagram className="w-4 h-4" />
+                  Follow on Instagram
                 </a>
               </div>
             </div>
@@ -268,36 +237,106 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 6. CONVERSION TRAP SECTION */}
-      <section className="bg-white py-24 border-t border-gray-100">
-        <div className="max-w-4xl mx-auto px-6 text-center flex flex-col items-center">
-          <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-6">
-            <Search className="w-6 h-6 text-gray-400" />
-          </div>
-          <h2 className="text-3xl md:text-4xl font-black tracking-tighter text-gray-900 mb-6">
-            Tak jumpa gambar?
+      {/* ─── DIRECTORY CROSS-LINK ─── */}
+      <section className="bg-[#fafafa] py-20">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <span className="text-xs font-bold tracking-[0.3em] uppercase text-gray-400 mb-3 block">
+            Looking for other photographers?
+          </span>
+          <h2 className="text-2xl md:text-4xl font-black tracking-tighter text-gray-900 mb-5">
+            Browse the full Malaysian race photography directory.
           </h2>
-          <p className="text-xl text-gray-500 font-medium mb-10 leading-relaxed max-w-2xl">
-            Cuba semak event lain juga. Mungkin kami tangkap anda di checkpoint berbeza.
+          <p className="text-base md:text-lg text-gray-500 font-medium mb-8 max-w-2xl mx-auto">
+            MarathonHub lists every race photographer covering events across Malaysia.
           </p>
-          <a href="#events" className="inline-flex items-center justify-center bg-black text-white px-10 py-4 rounded-full font-bold hover:bg-gray-800 transition-all hover:-translate-y-1 shadow-lg shadow-black/10">
-            Browse All Events
+          <a
+            href={MARATHONHUB_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 bg-black text-white px-8 py-4 rounded-full font-bold hover:bg-gray-800 transition-all hover:-translate-y-0.5 shadow-lg"
+          >
+            Visit MarathonHub
+            <ExternalLink className="w-4 h-4" />
           </a>
         </div>
       </section>
-      
-      {/* Footer */}
+
+      {/* ─── FOOTER ─── */}
       <footer className="border-t border-gray-200 bg-white">
-        <div className="max-w-7xl mx-auto px-6 py-12 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Aperture className="w-5 h-5 text-gray-400" />
-            <span className="font-bold text-gray-900 tracking-tight">OhMaiShoot.</span>
+        <div className="max-w-7xl mx-auto px-6 py-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Aperture className="w-5 h-5 text-black" />
+                <span className="font-black text-gray-900 tracking-tight">OhMaiShoot.</span>
+              </div>
+              <p className="text-sm text-gray-500 font-medium leading-relaxed">
+                Marathon and running event photography across Malaysia.
+              </p>
+            </div>
+
+            <div>
+              <h4 className="text-xs font-bold tracking-[0.2em] uppercase text-gray-400 mb-3">
+                Connect
+              </h4>
+              <ul className="space-y-2 text-sm font-semibold">
+                <li>
+                  <a
+                    href={IG_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-gray-600 hover:text-black transition-colors"
+                  >
+                    <Instagram className="w-4 h-4" />
+                    @{IG_HANDLE}
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href={`mailto:${EMAIL}`}
+                    className="flex items-center gap-2 text-gray-600 hover:text-black transition-colors"
+                  >
+                    <Mail className="w-4 h-4" />
+                    {EMAIL}
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="text-xs font-bold tracking-[0.2em] uppercase text-gray-400 mb-3">
+                More
+              </h4>
+              <ul className="space-y-2 text-sm font-semibold">
+                <li>
+                  <a href="#events" className="text-gray-600 hover:text-black transition-colors">
+                    Race Galleries
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href={MARATHONHUB_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-gray-600 hover:text-black transition-colors"
+                  >
+                    MarathonHub Directory
+                  </a>
+                </li>
+              </ul>
+            </div>
           </div>
-          <p className="text-gray-400 text-sm font-medium">
-            © {new Date().getFullYear()} OhMaiShoot Photography. All rights reserved.
-          </p>
-          <div className="flex gap-6">
-            <Link to="/admin" className="text-sm font-semibold text-gray-400 hover:text-black transition-colors">Admin Portal</Link>
+
+          <div className="pt-6 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-3">
+            <p className="text-gray-400 text-xs font-medium">
+              © {new Date().getFullYear()} OhMaiShoot Photography. All rights reserved.
+            </p>
+            <Link
+              to="/admin"
+              className="text-xs font-semibold text-gray-300 hover:text-gray-500 transition-colors"
+            >
+              Admin
+            </Link>
           </div>
         </div>
       </footer>
