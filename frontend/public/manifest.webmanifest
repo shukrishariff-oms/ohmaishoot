@@ -1,0 +1,19 @@
+{
+  "name": "OhMaiShoot — Marathon Race Photography Malaysia",
+  "short_name": "OhMaiShoot",
+  "description": "Find your finish line moment. Professional marathon and running event photography across Malaysia.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0a0a0a",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
