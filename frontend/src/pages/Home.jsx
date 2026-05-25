@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getPublishedAlbums, getCoverUrl } from '../services/api';
-import { Camera, MapPin, Calendar, ArrowRight, Aperture, Mail, ExternalLink } from 'lucide-react';
+import { Camera, MapPin, Calendar, ArrowRight, Aperture, Mail, ExternalLink, ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 // Inline Instagram SVG (lucide-react v1.11.0 doesn't export Instagram)
@@ -27,6 +27,17 @@ const IG_URL = `https://instagram.com/${IG_HANDLE}`;
 const EMAIL = 'ohmaishoot@gmail.com';
 const MARATHONHUB_URL = 'https://marathonhub.ohmaishoot.com';
 
+function formatDate(d) {
+  if (!d) return '';
+  try {
+    return new Date(d).toLocaleDateString('en-MY', {
+      day: 'numeric', month: 'short', year: 'numeric',
+    });
+  } catch {
+    return d;
+  }
+}
+
 export default function Home() {
   const [albums, setAlbums] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,11 +57,8 @@ export default function Home() {
     return () => { mounted = false; };
   }, []);
 
-  // Use cover of latest album as hero background (fallback to gradient if none)
   const heroAlbum = albums[0];
-  const heroBg = heroAlbum?.cover_image
-    ? getCoverUrl(heroAlbum.cover_image)
-    : null;
+  const heroBg = heroAlbum?.cover_image ? getCoverUrl(heroAlbum.cover_image) : null;
 
   return (
     <div className="bg-[#fafafa] min-h-screen font-sans selection:bg-black selection:text-white overflow-x-hidden">
@@ -64,6 +72,12 @@ export default function Home() {
             <span className="text-lg font-black tracking-tighter">OhMaiShoot.</span>
           </div>
           <div className="flex items-center gap-5">
+            <a
+              href="#events"
+              className="text-sm font-semibold text-gray-600 hover:text-black transition-colors hidden md:inline"
+            >
+              Race Galleries
+            </a>
             <a
               href={IG_URL}
               target="_blank"
@@ -86,85 +100,165 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* ─── BRAND STRIP (compact replacement for hero) ─── */}
-      <section className="pt-24 pb-10 md:pt-28 md:pb-12 bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <span className="inline-block text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase text-gray-400 mb-3">
-            Marathon Photography Malaysia
-          </span>
-          <h1 className="text-3xl md:text-5xl font-black tracking-tighter text-gray-900 leading-none mb-2">
-            Relive Your Run.
-          </h1>
-          <p className="text-sm md:text-base text-gray-500 font-medium">
-            Find your moment. Own your finish line.
-          </p>
+      {/* ─── HERO ─── */}
+      <section className="relative min-h-[88vh] md:min-h-screen flex items-center justify-center overflow-hidden">
+        {/* Background image (latest album cover) */}
+        <div className="absolute inset-0 bg-zinc-900">
+          {heroBg && (
+            <img
+              src={heroBg}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover scale-105 animate-[heroZoom_18s_ease-out_forwards]"
+            />
+          )}
+          {/* Layered gradients for legibility */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/85" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-black/40" />
         </div>
+
+        {/* Subtle film-grain overlay */}
+        <div
+          className="absolute inset-0 opacity-[0.06] mix-blend-overlay pointer-events-none"
+          style={{
+            backgroundImage:
+              "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
+          }}
+        />
+
+        <div className="relative z-10 max-w-5xl mx-auto px-6 pt-24 pb-20 text-center">
+          <span className="inline-block text-[10px] md:text-xs font-bold tracking-[0.4em] uppercase text-white/60 mb-5">
+            Marathon Race Photography · Malaysia
+          </span>
+          <h1 className="text-[clamp(2.5rem,8vw,5.5rem)] font-black tracking-[-0.04em] text-white leading-[0.95] mb-6">
+            Relive Your Run.
+            <br />
+            <span className="text-white/50">Own The Finish.</span>
+          </h1>
+          <p className="text-base md:text-xl text-white/75 font-medium max-w-xl mx-auto mb-10 leading-relaxed">
+            Cari gambar larian anda dari setiap acara marathon &amp; running event yang kami liputi di seluruh Malaysia.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a
+              href="#events"
+              className="inline-flex items-center justify-center gap-2 bg-white text-black px-8 py-4 rounded-full font-bold hover:bg-gray-100 transition-all hover:-translate-y-0.5 shadow-2xl shadow-black/30"
+            >
+              Cari Gambar Saya
+              <ArrowRight className="w-4 h-4" />
+            </a>
+            <a
+              href={MARATHONHUB_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 bg-white/10 backdrop-blur-md text-white px-8 py-4 rounded-full font-bold border border-white/25 hover:bg-white/20 transition-all"
+            >
+              Browse Directory
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          </div>
+
+          {/* Latest race ticker pill */}
+          {heroAlbum && (
+            <div className="mt-12 inline-flex items-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-5 py-2.5 text-white">
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+              </span>
+              <span className="text-xs font-bold tracking-widest uppercase text-white/70">Latest</span>
+              <span className="text-sm font-bold truncate max-w-[60vw] md:max-w-md">{heroAlbum.event_name}</span>
+              <span className="text-xs text-white/60 hidden sm:inline">· {formatDate(heroAlbum.event_date)}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Scroll cue */}
+        <a
+          href="#events"
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/60 hover:text-white transition-colors animate-bounce"
+          aria-label="Scroll to galleries"
+        >
+          <ChevronDown className="w-6 h-6" />
+        </a>
       </section>
 
       {/* ─── FEATURED EVENTS ─── */}
-      <main id="events" className="max-w-7xl mx-auto px-6 py-24 md:py-32 scroll-mt-20">
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-12 md:mb-16 gap-4">
+      <main id="events" className="max-w-7xl mx-auto px-6 py-20 md:py-28 scroll-mt-20">
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-10 md:mb-14 gap-3">
           <div>
-            <span className="text-xs font-bold tracking-[0.3em] uppercase text-gray-400 mb-3 block">
+            <span className="text-xs font-bold tracking-[0.3em] uppercase text-gray-400 mb-2 block">
               Race Galleries
             </span>
-            <h2 className="text-3xl md:text-5xl font-black tracking-tighter text-gray-900">
+            <h2 className="text-3xl md:text-5xl font-black tracking-[-0.03em] text-gray-900">
               Featured Events
             </h2>
-            <p className="text-base md:text-lg text-gray-500 font-medium mt-2">
-              Browse the most recent marathon coverages.
-            </p>
           </div>
           {!loading && albums.length > 0 && (
-            <span className="text-sm font-semibold text-gray-400">
+            <div className="flex items-center gap-2 text-xs font-bold tracking-widest uppercase text-gray-400">
+              <span className="w-8 h-px bg-gray-300" />
               {albums.length} {albums.length === 1 ? 'event' : 'events'}
-            </span>
+            </div>
           )}
         </div>
 
         {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-black" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-white rounded-2xl overflow-hidden border border-gray-200/60 shadow-sm">
+                <div className="aspect-[4/3] bg-gray-100 animate-pulse" />
+                <div className="p-5 space-y-3">
+                  <div className="h-5 bg-gray-100 rounded animate-pulse w-3/4" />
+                  <div className="h-3 bg-gray-100 rounded animate-pulse w-1/2" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : albums.length === 0 ? (
           <div className="text-center bg-white border border-gray-200 rounded-3xl py-32 flex flex-col items-center shadow-sm">
             <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-6">
               <Camera className="w-10 h-10 text-gray-300" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">No albums yet</h3>
-            <p className="text-gray-500">Check back later for new marathon photos.</p>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Belum ada album</h3>
+            <p className="text-gray-500">Sila datang lagi nanti untuk gambar marathon terbaru.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10">
-            {albums.map((album) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+            {albums.map((album, idx) => (
               <a
                 key={album.id}
                 href={album.album_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group bg-white rounded-2xl overflow-hidden flex flex-col border border-gray-200/60 shadow-sm hover:shadow-2xl hover:shadow-black/10 hover:-translate-y-1.5 transition-all duration-500"
+                className="group bg-white rounded-2xl overflow-hidden flex flex-col border border-gray-200/60 shadow-sm hover:shadow-2xl hover:shadow-black/15 hover:-translate-y-1.5 transition-all duration-500"
               >
                 <div className="relative aspect-[4/3] overflow-hidden bg-zinc-900">
                   <img
                     src={getCoverUrl(album.cover_image)}
                     alt={album.event_name}
-                    loading="lazy"
+                    loading={idx < 3 ? 'eager' : 'lazy'}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
 
-                  <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-sm text-black px-3 py-1 rounded-md font-bold text-xs shadow-sm">
+                  {/* Year tag */}
+                  <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-sm text-black px-2.5 py-1 rounded-md font-black text-[11px] tracking-wider shadow-sm">
                     {album.event_date?.split('-')[0] || ''}
                   </div>
+
+                  {/* New badge for latest album */}
+                  {idx === 0 && (
+                    <div className="absolute top-4 right-4 bg-emerald-500 text-white px-2.5 py-1 rounded-md font-black text-[10px] tracking-widest uppercase shadow-lg">
+                      Latest
+                    </div>
+                  )}
 
                   <div className="absolute bottom-0 left-0 right-0 p-5">
                     <h3 className="text-xl md:text-2xl font-bold text-white leading-tight line-clamp-2 drop-shadow-lg mb-2">
                       {album.event_name}
                     </h3>
-                    <div className="flex items-center gap-3 text-xs text-white/80 font-semibold">
+                    <div className="flex items-center gap-3 text-[11px] text-white/85 font-semibold">
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5" />
-                        {album.event_date}
+                        {formatDate(album.event_date)}
                       </span>
                     </div>
                   </div>
@@ -177,10 +271,10 @@ export default function Home() {
                   </div>
 
                   <div className="flex items-center justify-between gap-2 pt-4 border-t border-gray-100">
-                    <span className="text-sm font-bold text-black">
-                      View Photos
-                    </span>
-                    <ArrowRight className="w-4 h-4 text-black group-hover:translate-x-1 transition-transform" />
+                    <span className="text-sm font-bold text-black">View Photos</span>
+                    <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center group-hover:bg-emerald-500 transition-colors">
+                      <ArrowRight className="w-4 h-4 text-white group-hover:translate-x-0.5 transition-transform" />
+                    </div>
                   </div>
                 </div>
               </a>
@@ -189,75 +283,33 @@ export default function Home() {
         )}
       </main>
 
-      {/* ─── EXPERIENCE / EMOTIONAL ─── */}
-      <section className="bg-white border-y border-gray-100">
-        <div className="max-w-7xl mx-auto px-6 py-24">
-          <div className="bg-black rounded-[2rem] overflow-hidden flex flex-col md:flex-row shadow-2xl">
-            <div className="w-full md:w-1/2 relative min-h-[300px] md:min-h-[420px]">
-              <div
-                className="absolute inset-0 bg-cover bg-center"
-                style={{
-                  backgroundImage: heroBg
-                    ? `url('${heroBg}')`
-                    : `url('https://images.unsplash.com/photo-1530549387789-4c1017266635?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80')`
-                }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-black/0 to-black/40" />
-            </div>
-            <div className="w-full md:w-1/2 p-10 md:p-16 flex flex-col justify-center bg-black text-white">
-              <span className="text-xs font-bold tracking-[0.3em] uppercase text-white/50 mb-4">
-                The Story
-              </span>
-              <h2 className="text-3xl md:text-5xl font-black tracking-tighter mb-5 leading-tight">
-                Every race tells a story.<br />
-                <span className="text-gray-400">We capture yours.</span>
-              </h2>
-              <p className="text-base md:text-lg text-gray-400 mb-8 font-medium leading-relaxed">
-                The sweat, the tears, the triumph at the finish line. We freeze fleeting emotions into memories that last forever.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <a
-                  href="#events"
-                  className="inline-flex items-center justify-center gap-2 bg-white text-black px-7 py-3.5 rounded-full font-bold hover:bg-gray-200 transition-transform hover:scale-105"
-                >
-                  Find My Race Photos
-                </a>
-                <a
-                  href={IG_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 bg-white/10 backdrop-blur text-white px-7 py-3.5 rounded-full font-bold border border-white/20 hover:bg-white/20 transition-all"
-                >
-                  <Instagram className="w-4 h-4" />
-                  Follow on Instagram
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ─── DIRECTORY CROSS-LINK ─── */}
-      <section className="bg-[#fafafa] py-20">
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          <span className="text-xs font-bold tracking-[0.3em] uppercase text-gray-400 mb-3 block">
-            Looking for other photographers?
-          </span>
-          <h2 className="text-2xl md:text-4xl font-black tracking-tighter text-gray-900 mb-5">
-            Browse the full Malaysian race photography directory.
-          </h2>
-          <p className="text-base md:text-lg text-gray-500 font-medium mb-8 max-w-2xl mx-auto">
-            MarathonHub lists every race photographer covering events across Malaysia.
-          </p>
-          <a
-            href={MARATHONHUB_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 bg-black text-white px-8 py-4 rounded-full font-bold hover:bg-gray-800 transition-all hover:-translate-y-0.5 shadow-lg"
-          >
-            Visit MarathonHub
-            <ExternalLink className="w-4 h-4" />
-          </a>
+      <section className="bg-white border-y border-gray-100">
+        <div className="max-w-5xl mx-auto px-6 py-16 md:py-20">
+          <div className="bg-gradient-to-br from-black via-zinc-900 to-black rounded-3xl p-10 md:p-14 text-center text-white relative overflow-hidden">
+            {/* Decorative ring */}
+            <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-white/5 blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-20 -left-20 w-64 h-64 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+
+            <span className="relative inline-block text-[10px] md:text-xs font-bold tracking-[0.4em] uppercase text-white/50 mb-3">
+              Bukan event yang OhMaiShoot liput?
+            </span>
+            <h2 className="relative text-2xl md:text-4xl font-black tracking-[-0.03em] mb-4 leading-tight">
+              Cari di seluruh direktori jurugambar Malaysia.
+            </h2>
+            <p className="relative text-sm md:text-base text-white/65 font-medium mb-8 max-w-xl mx-auto leading-relaxed">
+              MarathonHub senaraikan setiap jurugambar yang meliputi event larian di Malaysia. Selfie, dapat semua gambar.
+            </p>
+            <a
+              href={MARATHONHUB_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="relative inline-flex items-center justify-center gap-2 bg-white text-black px-7 py-3.5 rounded-full font-bold hover:bg-gray-100 transition-all hover:-translate-y-0.5 shadow-xl"
+            >
+              Visit MarathonHub
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          </div>
         </div>
       </section>
 
@@ -340,6 +392,14 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
+      {/* Hero zoom keyframe */}
+      <style>{`
+        @keyframes heroZoom {
+          from { transform: scale(1.12); }
+          to { transform: scale(1.02); }
+        }
+      `}</style>
     </div>
   );
 }
