@@ -139,21 +139,31 @@ export default function Home() {
             Cari gambar larian anda dari setiap acara marathon &amp; running event yang kami liputi di seluruh Malaysia.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            {heroAlbum ? (
+              <a
+                href={heroAlbum.album_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group inline-flex items-center justify-center gap-2 bg-white text-black px-8 py-4 rounded-full font-bold hover:bg-gray-100 transition-all hover:-translate-y-0.5 shadow-2xl shadow-black/30"
+              >
+                <span>Cari Gambar {heroAlbum.event_name?.split(' ').slice(0, 3).join(' ')}</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              </a>
+            ) : (
+              <a
+                href="#events"
+                className="inline-flex items-center justify-center gap-2 bg-white text-black px-8 py-4 rounded-full font-bold hover:bg-gray-100 transition-all hover:-translate-y-0.5 shadow-2xl shadow-black/30"
+              >
+                Cari Gambar Saya
+                <ArrowRight className="w-4 h-4" />
+              </a>
+            )}
             <a
               href="#events"
-              className="inline-flex items-center justify-center gap-2 bg-white text-black px-8 py-4 rounded-full font-bold hover:bg-gray-100 transition-all hover:-translate-y-0.5 shadow-2xl shadow-black/30"
-            >
-              Cari Gambar Saya
-              <ArrowRight className="w-4 h-4" />
-            </a>
-            <a
-              href={MARATHONHUB_URL}
-              target="_blank"
-              rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 bg-white/10 backdrop-blur-md text-white px-8 py-4 rounded-full font-bold border border-white/25 hover:bg-white/20 transition-all"
             >
-              Browse Directory
-              <ExternalLink className="w-4 h-4" />
+              Lihat Semua Event
+              <ChevronDown className="w-4 h-4" />
             </a>
           </div>
 
