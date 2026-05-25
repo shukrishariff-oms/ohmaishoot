@@ -64,12 +64,12 @@ export default function Home() {
     <div className="bg-[#fafafa] min-h-screen font-sans selection:bg-black selection:text-white overflow-x-hidden">
       {/* ─── NAV ─── */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/85 backdrop-blur-md border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2 text-black">
             <img
               src="/logo.png"
               alt="OhMaiShoot"
-              className="h-10 w-auto"
+              className="h-14 w-auto"
               draggable="false"
             />
           </div>
@@ -334,7 +334,7 @@ export default function Home() {
                 <img
                   src="/logo.png"
                   alt="OhMaiShoot"
-                  className="h-12 w-auto"
+                  className="h-20 w-auto"
                   draggable="false"
                 />
               </div>
