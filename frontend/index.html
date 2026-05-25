@@ -8,51 +8,89 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- Primary Meta -->
-    <title>OhMaiShoot — Marathon Race Photography Malaysia</title>
-    <meta name="title" content="OhMaiShoot — Marathon Race Photography Malaysia" />
-    <meta name="description" content="Find your finish line moment. Professional marathon and running event photography across Malaysia. Browse race galleries by event." />
-    <meta name="keywords" content="marathon photography, race photos malaysia, runner photos, finish line, malaysia marathon, ohmaishoot, race photographer" />
+    <title>Official Marathon &amp; Running Event Photographer Malaysia | OhMaiShoot</title>
+    <meta name="title" content="Official Marathon &amp; Running Event Photographer Malaysia | OhMaiShoot" />
+    <meta name="description" content="Official race photographer for marathons, fun runs, half marathons, and triathlons across Malaysia. Free face-search, high-resolution downloads, no commission." />
+    <meta name="keywords" content="marathon photographer malaysia, race photographer malaysia, running event photographer, marathon photos malaysia, race photos malaysia, fun run photographer, ohmaishoot, marathonhub" />
     <meta name="author" content="OhMaiShoot Photography" />
-    <meta name="robots" content="index, follow" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="googlebot" content="index, follow, max-image-preview:large, max-snippet:-1" />
     <link rel="canonical" href="https://ohmaishoot.com/" />
+
+    <!-- Search engine verification -->
+    <meta name="google-site-verification" content="wmMsJ1suvubxtCMxWQHcUH_6TsmURnSRZffEwlyE_vY" />
+    <meta name="msvalidate.01" content="F7521108A0F2956C5024BA4691D879C0" />
 
     <!-- Open Graph (Facebook / Threads / WhatsApp) -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://ohmaishoot.com/" />
-    <meta property="og:title" content="OhMaiShoot — Marathon Race Photography Malaysia" />
-    <meta property="og:description" content="Find your finish line moment. Professional marathon and running event photography across Malaysia." />
+    <meta property="og:title" content="Official Marathon &amp; Running Event Photographer Malaysia | OhMaiShoot" />
+    <meta property="og:description" content="Official race photographer for marathons, fun runs, half marathons, and triathlons across Malaysia. Free face-search, high-resolution downloads, no commission." />
     <meta property="og:image" content="https://ohmaishoot.com/og-image.jpg" />
     <meta property="og:image:secure_url" content="https://ohmaishoot.com/og-image.jpg" />
     <meta property="og:image:type" content="image/jpeg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="OhMaiShoot — Marathon Race Photography Malaysia" />
+    <meta property="og:image:alt" content="OhMaiShoot — Official Marathon &amp; Running Event Photographer Malaysia" />
     <meta property="og:site_name" content="OhMaiShoot" />
     <meta property="og:locale" content="en_MY" />
+    <meta property="og:locale:alternate" content="ms_MY" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:url" content="https://ohmaishoot.com/" />
-    <meta name="twitter:title" content="OhMaiShoot — Marathon Race Photography Malaysia" />
-    <meta name="twitter:description" content="Find your finish line moment. Professional marathon and running event photography across Malaysia." />
+    <meta name="twitter:title" content="Official Marathon &amp; Running Event Photographer Malaysia | OhMaiShoot" />
+    <meta name="twitter:description" content="Official race photographer for marathons, fun runs, half marathons, and triathlons across Malaysia." />
     <meta name="twitter:image" content="https://ohmaishoot.com/og-image.jpg" />
 
-    <!-- JSON-LD: Organization -->
+    <!-- JSON-LD: Organization + WebSite/SearchAction. Inline so non-JS crawlers
+         (Googlebot fallback, ChatGPT, Claude, Perplexity) see it on first paint. -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "ProfessionalService",
-      "name": "OhMaiShoot Photography",
-      "description": "Marathon and running event photography across Malaysia",
-      "url": "https://ohmaishoot.com",
-      "image": "https://ohmaishoot.com/og-image.jpg",
-      "email": "ohmaishoot@gmail.com",
-      "areaServed": {
-        "@type": "Country",
-        "name": "Malaysia"
-      },
-      "sameAs": [
-        "https://instagram.com/ohmaishoot"
+      "@graph": [
+        {
+          "@type": ["Organization", "ProfessionalService"],
+          "@id": "https://ohmaishoot.com/#organization",
+          "name": "OhMaiShoot",
+          "alternateName": "OhMaiShoot Photography",
+          "description": "Official marathon and running event photographer in Malaysia. Face-search galleries, high-resolution race photo downloads, no middleman commission.",
+          "url": "https://ohmaishoot.com/",
+          "logo": "https://ohmaishoot.com/logo.png",
+          "image": "https://ohmaishoot.com/og-image.jpg",
+          "email": "ohmaishoot@gmail.com",
+          "areaServed": { "@type": "Country", "name": "Malaysia" },
+          "serviceType": [
+            "Marathon photography",
+            "Running event photography",
+            "Race photography",
+            "Triathlon photography",
+            "Cycling event photography"
+          ],
+          "knowsAbout": [
+            "Marathon photography Malaysia",
+            "Race finish line photography",
+            "Bib number photo search",
+            "Face-search race galleries"
+          ],
+          "sameAs": [
+            "https://instagram.com/ohmaishoot",
+            "https://marathonhub.ohmaishoot.com/"
+          ],
+          "subOrganization": {
+            "@type": "Organization",
+            "name": "MarathonHub",
+            "url": "https://marathonhub.ohmaishoot.com/"
+          }
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://ohmaishoot.com/#website",
+          "url": "https://ohmaishoot.com/",
+          "name": "OhMaiShoot",
+          "publisher": { "@id": "https://ohmaishoot.com/#organization" },
+          "inLanguage": ["en-MY", "ms-MY"]
+        }
       ]
     }
     </script>

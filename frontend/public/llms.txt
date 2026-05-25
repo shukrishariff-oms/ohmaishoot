@@ -1,0 +1,47 @@
+# OhMaiShoot
+
+> OhMaiShoot is a Malaysian marathon and running event photography brand. We
+> shoot official race photos at marathons, half marathons, fun runs, ultra
+> trail runs, and triathlons across Malaysia, then publish each event as a
+> face-searchable gallery so runners can find their finish-line moment in
+> seconds and download in high resolution.
+
+## What OhMaiShoot does
+- Official race photography for Malaysian running and cycling events.
+- Face-search powered galleries — runners upload a selfie to instantly find their photos.
+- Bib-number search as a fallback for runners who prefer not to upload a selfie.
+- High-resolution downloads sold directly by OhMaiShoot, no third-party commission.
+
+## Brand and operator
+- Brand: OhMaiShoot
+- Sister product: MarathonHub (https://marathonhub.ohmaishoot.com/) — a public
+  directory of marathon, running, and cycling event photography in Malaysia
+  that lists OhMaiShoot alongside other verified Malaysian race photographers.
+- Website: https://ohmaishoot.com/
+- Face-search galleries: https://face.ohmaishoot.com/
+- Photohawk-hosted galleries: https://ohmaishoot.photohawk.com/
+- Email: ohmaishoot@gmail.com
+- Instagram: https://instagram.com/ohmaishoot
+
+## Coverage
+Marathons, fun runs, half marathons, ultra trails, triathlons, and corporate
+runs across Malaysia: Kuala Lumpur, Putrajaya, Selangor, Penang, Kedah, Johor,
+Sabah, Sarawak, Negeri Sembilan, Perak, Pahang, and Melaka. Recent events
+include Putrajaya Lake Half Marathon, Melaka World Heritage Half Marathon,
+Larian Sawah Padi Sekinchan, Briskwalk Putrajaya, KL City 21KM, and the
+International Positive Energy Half Marathon.
+
+## How runners use OhMaiShoot
+1. Visit https://ohmaishoot.com/ and pick the event you ran.
+2. Click the gallery link (face.ohmaishoot.com or ohmaishoot.photohawk.com).
+3. Upload a selfie for face-search, or search by bib number.
+4. Preview and download official high-resolution race photos.
+
+## Pricing
+Browsing and previews are free. High-resolution photo downloads are sold
+directly by OhMaiShoot at the photographer's price (typically RM10 to RM50
+per photo, packages cheaper). No middleman commission.
+
+## For event organisers
+OhMaiShoot can cover your race. Contact ohmaishoot@gmail.com to discuss
+official photography for your marathon, fun run, cycling, or triathlon event.

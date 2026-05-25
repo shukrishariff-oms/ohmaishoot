@@ -295,6 +295,164 @@ export default function Home() {
         )}
       </main>
 
+      {/* ─── ABOUT OHMAISHOOT (SEO/GEO entity content) ─── */}
+      <section
+        aria-labelledby="about-heading"
+        className="bg-white border-y border-gray-100"
+      >
+        <div className="max-w-4xl mx-auto px-6 py-16 md:py-24">
+          <span className="text-xs font-bold tracking-[0.3em] uppercase text-gray-400 mb-3 block">
+            About OhMaiShoot
+          </span>
+          <h2
+            id="about-heading"
+            className="text-3xl md:text-5xl font-black tracking-[-0.03em] text-gray-900 mb-6"
+          >
+            Official marathon &amp; running event photographer in Malaysia.
+          </h2>
+          <div className="space-y-5 text-base md:text-lg text-gray-700 font-medium leading-relaxed">
+            <p>
+              <strong>OhMaiShoot</strong> shoots official race photos at marathons,
+              fun runs, half marathons, ultra trails, and triathlons across Malaysia.
+              We deliver every event as a <strong>face-search gallery</strong> so you
+              can find your finish-line moment in seconds — upload a selfie, see your
+              photos, download in high resolution. No bib? No problem.
+            </p>
+            <p>
+              We&apos;ve covered races in Kuala Lumpur, Putrajaya, Selangor, Penang,
+              Kedah, Johor, Melaka, and beyond — from the Putrajaya Lake Half Marathon
+              to the Melaka World Heritage Half Marathon, Larian Sawah Padi Sekinchan,
+              and the International Positive Energy Half Marathon. Every photo is sold
+              direct by OhMaiShoot, so runners pay the photographer&apos;s price — no
+              middleman commission.
+            </p>
+            <p>
+              OhMaiShoot also operates{' '}
+              <a
+                href="https://marathonhub.ohmaishoot.com/"
+                className="font-bold text-black underline decoration-emerald-500 decoration-2 underline-offset-4 hover:decoration-4 transition-all"
+              >
+                MarathonHub
+              </a>{' '}
+              — Malaysia&apos;s public directory of marathon, running, and cycling
+              event photographers. If we didn&apos;t shoot your race, you&apos;ll
+              probably find your photographer there.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── FAQ (visible + JSON-LD for Google rich results & AI search) ─── */}
+      <section
+        aria-labelledby="faq-heading"
+        className="bg-[#fafafa] border-b border-gray-100"
+      >
+        <div className="max-w-3xl mx-auto px-6 py-16 md:py-20">
+          <span className="text-xs font-bold tracking-[0.3em] uppercase text-gray-400 mb-3 block">
+            Frequently asked
+          </span>
+          <h2
+            id="faq-heading"
+            className="text-2xl md:text-4xl font-black tracking-[-0.03em] text-gray-900 mb-10"
+          >
+            Common questions about OhMaiShoot.
+          </h2>
+          <dl className="space-y-3">
+            {[
+              {
+                q: 'How do I find my marathon photos with OhMaiShoot?',
+                a: 'Open the event from the Race Galleries section above and click through to the gallery. Upload a selfie for face-search, or search by bib number — your photos appear in seconds. Browsing and previews are free.',
+              },
+              {
+                q: 'How much does an OhMaiShoot race photo cost?',
+                a: 'High-resolution downloads start from RM10 per photo, with package pricing for multiple photos. Final pricing is set per event and shown inside each gallery. OhMaiShoot sells direct, so there\u2019s no third-party commission.',
+              },
+              {
+                q: 'Which marathons and running events do you cover in Malaysia?',
+                a: 'We cover marathons, fun runs, half marathons, ultra trails, triathlons, and corporate runs across Kuala Lumpur, Putrajaya, Selangor, Penang, Kedah, Johor, Melaka and beyond. Our recent events list is on this page under Featured Events.',
+              },
+              {
+                q: 'Can you shoot my running event?',
+                a: 'Yes. Email ohmaishoot@gmail.com with your event date, location, and expected number of runners. We provide official race photography with same-day or next-day face-search gallery delivery.',
+              },
+              {
+                q: 'What is MarathonHub and how is it related to OhMaiShoot?',
+                a: 'MarathonHub (marathonhub.ohmaishoot.com) is a public directory of marathon, running, and cycling event photographers in Malaysia, operated by OhMaiShoot. If we didn\u2019t cover your race, MarathonHub helps you find the photographer who did.',
+              },
+            ].map((item, i) => (
+              <details
+                key={i}
+                className="group bg-white border border-gray-200 rounded-2xl px-5 py-4 [&_summary::-webkit-details-marker]:hidden"
+              >
+                <summary className="flex items-center justify-between cursor-pointer list-none">
+                  <dt className="font-bold text-gray-900 text-base md:text-lg pr-4">
+                    {item.q}
+                  </dt>
+                  <ChevronDown className="w-5 h-5 text-gray-400 flex-shrink-0 transition-transform group-open:rotate-180" />
+                </summary>
+                <dd className="mt-3 text-gray-600 font-medium leading-relaxed">
+                  {item.a}
+                </dd>
+              </details>
+            ))}
+          </dl>
+
+          {/* JSON-LD FAQPage — Google rich results + AI search engines */}
+          <script
+            type="application/ld+json"
+            // eslint-disable-next-line react/no-danger
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                '@context': 'https://schema.org',
+                '@type': 'FAQPage',
+                mainEntity: [
+                  {
+                    '@type': 'Question',
+                    name: 'How do I find my marathon photos with OhMaiShoot?',
+                    acceptedAnswer: {
+                      '@type': 'Answer',
+                      text: 'Open the event from Race Galleries on ohmaishoot.com, click into the gallery, then upload a selfie for face-search or search by bib number. Browsing and previews are free.',
+                    },
+                  },
+                  {
+                    '@type': 'Question',
+                    name: 'How much does an OhMaiShoot race photo cost?',
+                    acceptedAnswer: {
+                      '@type': 'Answer',
+                      text: 'High-resolution downloads start from RM10 per photo, with package pricing for multiple photos. OhMaiShoot sells direct, no third-party commission.',
+                    },
+                  },
+                  {
+                    '@type': 'Question',
+                    name: 'Which marathons and running events do you cover in Malaysia?',
+                    acceptedAnswer: {
+                      '@type': 'Answer',
+                      text: 'Marathons, fun runs, half marathons, ultra trails, triathlons, and corporate runs across Kuala Lumpur, Putrajaya, Selangor, Penang, Kedah, Johor, and Melaka.',
+                    },
+                  },
+                  {
+                    '@type': 'Question',
+                    name: 'Can you shoot my running event?',
+                    acceptedAnswer: {
+                      '@type': 'Answer',
+                      text: 'Yes. Email ohmaishoot@gmail.com with event date, location, and runner count. We provide official race photography with same-day or next-day face-search gallery delivery.',
+                    },
+                  },
+                  {
+                    '@type': 'Question',
+                    name: 'What is MarathonHub and how is it related to OhMaiShoot?',
+                    acceptedAnswer: {
+                      '@type': 'Answer',
+                      text: 'MarathonHub (marathonhub.ohmaishoot.com) is a public directory of marathon, running, and cycling event photographers in Malaysia, operated by OhMaiShoot.',
+                    },
+                  },
+                ],
+              }),
+            }}
+          />
+        </div>
+      </section>
+
       {/* ─── DIRECTORY CROSS-LINK ─── */}
       <section className="bg-white border-y border-gray-100">
         <div className="max-w-5xl mx-auto px-6 py-16 md:py-20">
