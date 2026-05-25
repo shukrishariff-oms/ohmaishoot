@@ -66,10 +66,12 @@ export default function Home() {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/85 backdrop-blur-md border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 text-black">
-            <div className="w-9 h-9 bg-black text-white rounded-lg flex items-center justify-center shadow-sm">
-              <Aperture className="w-5 h-5" />
-            </div>
-            <span className="text-lg font-black tracking-tighter">OhMaiShoot.</span>
+            <img
+              src="/logo.png"
+              alt="OhMaiShoot"
+              className="h-10 w-auto"
+              draggable="false"
+            />
           </div>
           <div className="flex items-center gap-5">
             <a
@@ -328,9 +330,13 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-6 py-12">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
             <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Aperture className="w-5 h-5 text-black" />
-                <span className="font-black text-gray-900 tracking-tight">OhMaiShoot.</span>
+              <div className="mb-3">
+                <img
+                  src="/logo.png"
+                  alt="OhMaiShoot"
+                  className="h-12 w-auto"
+                  draggable="false"
+                />
               </div>
               <p className="text-sm text-gray-500 font-medium leading-relaxed">
                 Marathon and running event photography across Malaysia.
