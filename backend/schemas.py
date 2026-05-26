@@ -19,6 +19,8 @@ class Album(AlbumBase):
     id: int
     cover_image: str
     created_at: datetime.datetime
+    slug: Optional[str] = None
+    description: Optional[str] = None
 
     class Config:
         from_attributes = True
