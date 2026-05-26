@@ -25,7 +25,7 @@ const Instagram = ({ className = '', ...props }) => (
 const IG_HANDLE = 'ohmaishoot';
 const IG_URL = `https://instagram.com/${IG_HANDLE}`;
 const EMAIL = 'ohmaishoot@gmail.com';
-const WHATSAPP_NUMBER = '60123456789'; // TODO: tukar ke nombor sebenar Syuk
+const WHATSAPP_NUMBER = '60133157062';
 const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hai Syuk, saya nak tanya pasal gambar marathon...')}`;
 const MARATHONHUB_URL = 'https://marathonhub.ohmaishoot.com';
 
