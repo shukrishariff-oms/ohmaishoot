@@ -8,6 +8,7 @@ class AlbumBase(BaseModel):
     location: str
     album_url: str
     is_published: bool = False
+    face_slug: Optional[str] = None
 
 class AlbumCreate(AlbumBase):
     pass
@@ -21,6 +22,9 @@ class Album(AlbumBase):
     created_at: datetime.datetime
     slug: Optional[str] = None
     description: Optional[str] = None
+    photo_count: Optional[int] = 0
+    indexed_count: Optional[int] = 0
+    last_synced_at: Optional[datetime.datetime] = None
 
     class Config:
         from_attributes = True

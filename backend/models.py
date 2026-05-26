@@ -18,6 +18,10 @@ class Album(Base):
     description = Column(String, nullable=True)
     # Trust counter
     photo_count = Column(Integer, default=0)
+    # Face-search pipeline link (faces.ohmaishoot.com)
+    face_slug = Column(String, nullable=True, index=True)
+    indexed_count = Column(Integer, default=0)
+    last_synced_at = Column(DateTime, nullable=True)
 
 
 class AlbumClick(Base):

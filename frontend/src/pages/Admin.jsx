@@ -34,7 +34,7 @@ export default function Admin() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAlbum, setEditingAlbum] = useState(null);
   const [formData, setFormData] = useState({
-    event_name: '', event_date: '', location: '', album_url: '', is_published: false, photo_count: 0,
+    event_name: '', event_date: '', location: '', album_url: '', is_published: false, photo_count: 0, face_slug: '',
   });
   const [coverImage, setCoverImage] = useState(null);
 
@@ -88,11 +88,12 @@ export default function Admin() {
         album_url: album.album_url,
         is_published: album.is_published,
         photo_count: album.photo_count || 0,
+        face_slug: album.face_slug || '',
       });
     } else {
       setEditingAlbum(null);
       setFormData({
-        event_name: '', event_date: '', location: '', album_url: '', is_published: false, photo_count: 0,
+        event_name: '', event_date: '', location: '', album_url: '', is_published: false, photo_count: 0, face_slug: '',
       });
     }
     setCoverImage(null);
@@ -537,6 +538,18 @@ export default function Admin() {
                     className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-black focus:ring-1 focus:ring-black transition-all"
                     required
                   />
+                </div>
+
+                <div className="col-span-1 md:col-span-2">
+                  <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2"><LinkIcon className="w-4 h-4"/> Face-Search Event Slug (auto-sync)</label>
+                  <input
+                    type="text"
+                    value={formData.face_slug || ''}
+                    onChange={e => setFormData({...formData, face_slug: e.target.value})}
+                    placeholder="e.g. larian-sawah-padi-sekinchan-2026-1l3l3e1i"
+                    className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-black focus:ring-1 focus:ring-black transition-all font-mono text-sm"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Slug dari faces.ohmaishoot.com — bila set, photo count auto-update dari pipeline. Kosongkan kalau guna manual.</p>
                 </div>
 
                 <div className="col-span-1 md:col-span-2">

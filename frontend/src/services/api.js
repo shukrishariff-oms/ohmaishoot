@@ -42,6 +42,9 @@ export const createAlbum = async (albumData, coverImage) => {
   formData.append('location', albumData.location);
   formData.append('album_url', albumData.album_url);
   formData.append('is_published', albumData.is_published);
+  if (albumData.face_slug !== undefined && albumData.face_slug !== null) {
+    formData.append('face_slug', albumData.face_slug || '');
+  }
   formData.append('cover_image', coverImage);
 
   const response = await api.post('/admin/albums', formData);
@@ -55,6 +58,9 @@ export const updateAlbum = async (id, albumData, coverImage) => {
   formData.append('location', albumData.location);
   formData.append('album_url', albumData.album_url);
   formData.append('is_published', albumData.is_published);
+  if (albumData.face_slug !== undefined && albumData.face_slug !== null) {
+    formData.append('face_slug', albumData.face_slug || '');
+  }
   
   if (coverImage) {
     formData.append('cover_image', coverImage);

@@ -38,6 +38,13 @@ def _run_migrations():
                 conn.execute(text("ALTER TABLE albums ADD COLUMN description VARCHAR"))
             if "photo_count" not in cols:
                 conn.execute(text("ALTER TABLE albums ADD COLUMN photo_count INTEGER DEFAULT 0"))
+            if "face_slug" not in cols:
+                conn.execute(text("ALTER TABLE albums ADD COLUMN face_slug VARCHAR"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_albums_face_slug ON albums(face_slug)"))
+            if "indexed_count" not in cols:
+                conn.execute(text("ALTER TABLE albums ADD COLUMN indexed_count INTEGER DEFAULT 0"))
+            if "last_synced_at" not in cols:
+                conn.execute(text("ALTER TABLE albums ADD COLUMN last_synced_at DATETIME"))
         if "album_clicks" in insp.get_table_names():
             cols = {c["name"] for c in insp.get_columns("album_clicks")}
             if "device" not in cols:
@@ -296,6 +303,7 @@ async def create_album(
     location: str = Form(...),
     album_url: str = Form(...),
     is_published: bool = Form(False),
+    face_slug: Optional[str] = Form(None),
     cover_image: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: str = Depends(get_current_user),
@@ -313,6 +321,7 @@ async def create_album(
         location=location,
         album_url=album_url,
         is_published=is_published,
+        face_slug=(face_slug.strip() or None) if face_slug else None,
         cover_image=file_name,
     )
     db.add(db_album)
@@ -329,6 +338,7 @@ async def update_album(
     location: str = Form(...),
     album_url: str = Form(...),
     is_published: bool = Form(...),
+    face_slug: Optional[str] = Form(None),
     cover_image: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
     current_user: str = Depends(get_current_user),
@@ -880,9 +890,19 @@ from fastapi.responses import Response
 # ── Public stats (hero counter) ───────────────────────────────────
 @app.get("/stats/public")
 def public_stats(db: Session = Depends(get_db)):
-    """Trust-signal counters shown on the homepage hero."""
+    """Trust-signal counters shown on the homepage hero.
+
+    Uses indexed_count (auto-synced from faces.ohmaishoot.com pipeline) when
+    available, falls back to manual photo_count otherwise. Per-album we take
+    max(indexed_count, photo_count) so the bigger, more impressive number wins.
+    """
     total_events = db.query(func.count(models.Album.id)).filter(models.Album.is_published == True).scalar() or 0
-    total_photos = db.query(func.coalesce(func.sum(models.Album.photo_count), 0)).filter(models.Album.is_published == True).scalar() or 0
+    # Prefer auto-synced indexed_count; fall back to manual photo_count
+    rows = db.query(
+        func.coalesce(models.Album.indexed_count, 0),
+        func.coalesce(models.Album.photo_count, 0),
+    ).filter(models.Album.is_published == True).all()
+    total_photos = sum(max(int(a or 0), int(b or 0)) for a, b in rows)
     # Years active = distinct YYYY in event_date
     years = db.query(func.substr(models.Album.event_date, 1, 4)).filter(models.Album.is_published == True).distinct().all()
     total_years = len([y[0] for y in years if y[0]])
@@ -893,6 +913,59 @@ def public_stats(db: Session = Depends(get_db)):
         "years": max(total_years, 1),
         "locations": distinct_locations,
     }
+
+
+# ── Internal webhook: faces.ohmaishoot.com → photo count sync ─────
+class PhotoCountWebhookIn(BaseModel):
+    event_slug: str
+    event_name: Optional[str] = None
+    album_id: Optional[int] = None
+    photographer_slug: Optional[str] = None
+    photo_count: int = 0
+    indexed_count: int = 0
+    ready: Optional[bool] = None
+    backend: Optional[str] = None
+    synced_at: Optional[str] = None
+
+
+@app.post("/internal/photo-count")
+def webhook_photo_count(
+    payload: PhotoCountWebhookIn,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Webhook receiver for faces.ohmaishoot.com pipeline.
+
+    Auth via Bearer token matching OHMAISHOOT_WEBHOOK_SECRET env.
+    Lookup album by face_slug == payload.event_slug.
+    Returns matched=false (200) when no album linked yet — shuzk treats as success, no retry.
+    """
+    expected = os.getenv("OHMAISHOOT_WEBHOOK_SECRET", "").strip()
+    if not expected:
+        # Fail closed — better to reject than accept anonymous writes
+        raise HTTPException(status_code=503, detail="webhook not configured")
+
+    auth = request.headers.get("authorization", "")
+    if not auth.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="missing bearer token")
+    token = auth.split(" ", 1)[1].strip()
+    # Constant-time compare
+    import hmac
+    if not hmac.compare_digest(token, expected):
+        raise HTTPException(status_code=401, detail="invalid secret")
+
+    a = db.query(models.Album).filter(models.Album.face_slug == payload.event_slug).first()
+    if not a:
+        return {"ok": True, "matched": False, "reason": "no album with face_slug"}
+
+    a.indexed_count = max(0, int(payload.indexed_count or 0))
+    # Don't overwrite manual photo_count if pipeline reports lower (e.g. partial index)
+    pc = max(0, int(payload.photo_count or 0))
+    if pc > (a.photo_count or 0):
+        a.photo_count = pc
+    a.last_synced_at = datetime.utcnow()
+    db.commit()
+    return {"ok": True, "matched": True, "ohmaishoot_album_id": a.id}
 
 
 # ── Public bib search ─────────────────────────────────────────────
