@@ -175,6 +175,11 @@ export const updatePhotoCount = async (albumId, photo_count) => {
   return response.data;
 };
 
+export const bulkUpdatePhotoCounts = async (items) => {
+  const response = await api.patch('/admin/albums/photo-counts/bulk', { items });
+  return response.data;
+};
+
 export const getStatsBib = async (days = 30, limit = 20) => {
   const response = await api.get('/admin/stats/bib', { params: { days, limit } });
   return response.data;

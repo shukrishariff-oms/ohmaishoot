@@ -953,6 +953,32 @@ def update_photo_count(
     return {"ok": True, "photo_count": a.photo_count}
 
 
+class BulkPhotoCountItem(BaseModel):
+    id: int
+    photo_count: int
+
+
+class BulkPhotoCountIn(BaseModel):
+    items: list[BulkPhotoCountItem]
+
+
+@app.patch("/admin/albums/photo-counts/bulk")
+def bulk_update_photo_count(
+    payload: BulkPhotoCountIn,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user),
+):
+    updated = 0
+    for it in payload.items:
+        a = db.query(models.Album).filter(models.Album.id == it.id).first()
+        if not a:
+            continue
+        a.photo_count = max(0, int(it.photo_count or 0))
+        updated += 1
+    db.commit()
+    return {"ok": True, "updated": updated}
+
+
 @app.get("/admin/stats/bib")
 def stats_bib(
     days: int = 30,

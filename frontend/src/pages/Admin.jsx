@@ -6,9 +6,10 @@ import {
   updateAlbum, 
   togglePublishAlbum, 
   deleteAlbum, 
-  getCoverUrl 
+  getCoverUrl,
+  bulkUpdatePhotoCounts,
 } from '../services/api';
-import { Lock, Plus, Upload, Link as LinkIcon, MapPin, Calendar, Type, Loader2, Image as ImageIcon, Eye, EyeOff, Trash2, Edit2, LogOut, BarChart3, FolderOpen, Mail } from 'lucide-react';
+import { Lock, Plus, Upload, Link as LinkIcon, MapPin, Calendar, Type, Loader2, Image as ImageIcon, Eye, EyeOff, Trash2, Edit2, LogOut, BarChart3, FolderOpen, Mail, Hash } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Dashboard from './Dashboard';
 import Leads from './Leads';
@@ -23,6 +24,11 @@ export default function Admin() {
   const [albums, setAlbums] = useState([]);
   const [fetchingAlbums, setFetchingAlbums] = useState(false);
   const [tab, setTab] = useState('dashboard'); // 'dashboard' | 'events' | 'leads'
+
+  // Bulk photo count states
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkDraft, setBulkDraft] = useState({}); // { [albumId]: number }
+  const [bulkSaving, setBulkSaving] = useState(false);
   
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -128,13 +134,36 @@ export default function Admin() {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this event? This action cannot be undone.")) {
+    if (window.confirm("Are you sure you want to delete this album?")) {
       try {
         await deleteAlbum(id);
         loadAlbums();
-      } catch (err) {
-        console.error(err);
-      }
+      } catch (err) { console.error(err); }
+    }
+  };
+
+  const openBulkPhotoCount = () => {
+    const draft = {};
+    albums.forEach(a => { draft[a.id] = a.photo_count || 0; });
+    setBulkDraft(draft);
+    setBulkOpen(true);
+  };
+
+  const saveBulkPhotoCount = async () => {
+    setBulkSaving(true);
+    try {
+      const items = Object.entries(bulkDraft).map(([id, photo_count]) => ({
+        id: parseInt(id),
+        photo_count: parseInt(photo_count) || 0,
+      }));
+      await bulkUpdatePhotoCounts(items);
+      setBulkOpen(false);
+      loadAlbums();
+    } catch (err) {
+      console.error(err);
+      alert('Error saving photo counts');
+    } finally {
+      setBulkSaving(false);
     }
   };
 
@@ -253,13 +282,23 @@ export default function Admin() {
         <>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <h2 className="text-3xl font-black text-gray-900">Event Albums</h2>
-          <button 
-            onClick={() => openModal()} 
-            className="bg-black text-white px-5 py-3 rounded-lg font-semibold flex items-center gap-2 hover:bg-gray-800 transition-colors shadow-lg shadow-black/10"
-          >
-            <Plus className="w-5 h-5" />
-            Add New Event
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={openBulkPhotoCount}
+              className="bg-white text-gray-900 border border-gray-200 px-4 py-3 rounded-lg font-semibold flex items-center gap-2 hover:bg-gray-50 transition-colors"
+              title="Set photo count untuk semua album sekali gus"
+            >
+              <Hash className="w-4 h-4" />
+              Set Jumlah Gambar
+            </button>
+            <button 
+              onClick={() => openModal()} 
+              className="bg-black text-white px-5 py-3 rounded-lg font-semibold flex items-center gap-2 hover:bg-gray-800 transition-colors shadow-lg shadow-black/10"
+            >
+              <Plus className="w-5 h-5" />
+              Add New Event
+            </button>
+          </div>
         </div>
 
         {fetchingAlbums ? (
@@ -347,6 +386,68 @@ export default function Admin() {
         </>
         )}
       </main>
+
+      {/* Bulk Photo Count Modal */}
+      {bulkOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10">
+              <div>
+                <h3 className="text-2xl font-black flex items-center gap-2">
+                  <Hash className="w-6 h-6" /> Set Jumlah Gambar
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">Anggaran je pun ok — angka untuk hero counter di homepage.</p>
+              </div>
+              <button onClick={() => setBulkOpen(false)} className="text-gray-400 hover:text-black text-2xl font-light">&times;</button>
+            </div>
+
+            <div className="p-6 space-y-3">
+              {albums.map(a => (
+                <div key={a.id} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
+                  <img src={getCoverUrl(a.cover_image)} alt="" className="w-14 h-10 object-cover rounded-lg border border-gray-200" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-sm text-gray-900 truncate">{a.event_name}</div>
+                    <div className="text-xs text-gray-500 truncate">{a.location} · {a.event_date}</div>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    step="50"
+                    value={bulkDraft[a.id] ?? 0}
+                    onChange={e => setBulkDraft({ ...bulkDraft, [a.id]: e.target.value })}
+                    className="w-28 px-3 py-2 bg-white border border-gray-200 rounded-lg font-mono text-right focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black"
+                  />
+                </div>
+              ))}
+              {albums.length === 0 && (
+                <div className="text-center text-gray-400 py-8">Tiada album.</div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-100 flex items-center justify-between gap-3 sticky bottom-0 bg-white">
+              <div className="text-sm text-gray-500">
+                Jumlah: <span className="font-bold text-gray-900">{Object.values(bulkDraft).reduce((s, v) => s + (parseInt(v) || 0), 0).toLocaleString()}</span> gambar
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setBulkOpen(false)}
+                  className="px-4 py-2 text-sm font-bold text-gray-600 hover:text-black"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={saveBulkPhotoCount}
+                  disabled={bulkSaving}
+                  className="bg-black text-white px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2 hover:bg-gray-800 transition-colors disabled:opacity-50"
+                >
+                  {bulkSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Hash className="w-4 h-4" />}
+                  Simpan Semua
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal */}
       {isModalOpen && (
