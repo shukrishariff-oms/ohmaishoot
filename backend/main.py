@@ -23,6 +23,29 @@ import schemas
 # Create tables
 Base.metadata.create_all(bind=engine)
 
+
+def _run_migrations():
+    """Lightweight schema migrations for SQLite (additive only)."""
+    from sqlalchemy import inspect, text
+    insp = inspect(engine)
+    with engine.begin() as conn:
+        if "albums" in insp.get_table_names():
+            cols = {c["name"] for c in insp.get_columns("albums")}
+            if "slug" not in cols:
+                conn.execute(text("ALTER TABLE albums ADD COLUMN slug VARCHAR"))
+                conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_albums_slug ON albums(slug)"))
+            if "description" not in cols:
+                conn.execute(text("ALTER TABLE albums ADD COLUMN description VARCHAR"))
+        if "album_clicks" in insp.get_table_names():
+            cols = {c["name"] for c in insp.get_columns("album_clicks")}
+            if "device" not in cols:
+                conn.execute(text("ALTER TABLE album_clicks ADD COLUMN device VARCHAR"))
+            if "source" not in cols:
+                conn.execute(text("ALTER TABLE album_clicks ADD COLUMN source VARCHAR"))
+
+
+_run_migrations()
+
 # Ensure storage directory exists
 STORAGE_DIR = os.path.join(os.path.dirname(__file__), "storage", "covers")
 os.makedirs(STORAGE_DIR, exist_ok=True)
