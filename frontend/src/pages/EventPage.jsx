@@ -4,7 +4,7 @@ import {
   Camera, MapPin, Calendar, ArrowRight, ChevronLeft, Mail, Loader2,
   CheckCircle2, ExternalLink, Sparkles, ShieldCheck,
 } from 'lucide-react';
-import { getEventBySlug, getCoverUrl, trackAlbumClick, trackPageView, submitLead } from '../services/api';
+import { getEventBySlug, getCoverUrl, trackAlbumClick, trackPageView, submitLead, trackBibSearch } from '../services/api';
 
 function formatDate(d) {
   if (!d) return '';
@@ -62,6 +62,9 @@ export default function EventPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [formError, setFormError] = useState('');
+
+  // Bib search
+  const [bib, setBib] = useState('');
 
   useEffect(() => {
     let mounted = true;
@@ -212,6 +215,41 @@ export default function EventPage() {
               <Sparkles className="w-4 h-4" />
             </a>
           </div>
+
+          {/* Bib search */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const trimmed = (bib || '').trim();
+              if (!trimmed) return;
+              trackBibSearch(slug, trimmed);
+              trackAlbumClick(event.id, `bib-${trimmed}`);
+              const u = new URL(event.album_url);
+              // append bib as a query — most photo platforms accept ?q= or ?bib=
+              u.searchParams.set('bib', trimmed);
+              u.searchParams.set('q', trimmed);
+              window.open(u.toString(), '_blank', 'noopener');
+            }}
+            className="mt-6 max-w-md flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full p-1.5 pl-5"
+          >
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="Atau cari ikut nombor bib..."
+              value={bib}
+              onChange={(e) => setBib(e.target.value.replace(/[^\w-]/g, '').slice(0, 16))}
+              className="flex-1 bg-transparent text-white placeholder:text-white/50 font-semibold outline-none text-sm py-2"
+              aria-label="Bib number"
+            />
+            <button
+              type="submit"
+              disabled={!bib.trim()}
+              className="bg-white text-black font-bold text-sm px-4 py-2.5 rounded-full hover:bg-gray-100 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+            >
+              Cari
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </form>
         </div>
       </section>
 

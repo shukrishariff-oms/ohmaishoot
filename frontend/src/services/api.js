@@ -153,3 +153,29 @@ export const backfillSlugs = async () => {
   const response = await api.post('/admin/albums/backfill-slugs');
   return response.data;
 };
+
+export const getPublicStats = async () => {
+  const response = await api.get('/stats/public');
+  return response.data;
+};
+
+export const trackBibSearch = async (slug, bib) => {
+  try {
+    if (navigator.sendBeacon) {
+      const blob = new Blob([JSON.stringify({ bib })], { type: 'application/json' });
+      navigator.sendBeacon(`${API_URL}/events/${slug}/bib-search`, blob);
+      return;
+    }
+    await api.post(`/events/${slug}/bib-search`, { bib });
+  } catch (_) { /* swallow */ }
+};
+
+export const updatePhotoCount = async (albumId, photo_count) => {
+  const response = await api.patch(`/admin/albums/${albumId}/photo-count`, { photo_count });
+  return response.data;
+};
+
+export const getStatsBib = async (days = 30, limit = 20) => {
+  const response = await api.get('/admin/stats/bib', { params: { days, limit } });
+  return response.data;
+};

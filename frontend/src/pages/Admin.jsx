@@ -28,7 +28,7 @@ export default function Admin() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAlbum, setEditingAlbum] = useState(null);
   const [formData, setFormData] = useState({
-    event_name: '', event_date: '', location: '', album_url: '', is_published: false
+    event_name: '', event_date: '', location: '', album_url: '', is_published: false, photo_count: 0,
   });
   const [coverImage, setCoverImage] = useState(null);
 
@@ -80,12 +80,13 @@ export default function Admin() {
         event_date: album.event_date,
         location: album.location,
         album_url: album.album_url,
-        is_published: album.is_published
+        is_published: album.is_published,
+        photo_count: album.photo_count || 0,
       });
     } else {
       setEditingAlbum(null);
       setFormData({
-        event_name: '', event_date: '', location: '', album_url: '', is_published: false
+        event_name: '', event_date: '', location: '', album_url: '', is_published: false, photo_count: 0,
       });
     }
     setCoverImage(null);
@@ -435,6 +436,19 @@ export default function Admin() {
                     className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-black focus:ring-1 focus:ring-black transition-all"
                     required
                   />
+                </div>
+
+                <div className="col-span-1 md:col-span-2">
+                  <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2"><ImageIcon className="w-4 h-4"/> Jumlah Gambar (untuk hero counter)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.photo_count || 0}
+                    onChange={e => setFormData({...formData, photo_count: parseInt(e.target.value) || 0})}
+                    placeholder="e.g. 1500"
+                    className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 outline-none focus:border-black focus:ring-1 focus:ring-black transition-all"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Anggaran je. Akan tambah ke "100K+ Gambar" counter di homepage.</p>
                 </div>
                 
                 <div className="col-span-1 md:col-span-2 flex items-center gap-3 bg-gray-50 p-4 rounded-xl border border-gray-100">

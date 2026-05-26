@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getPublishedAlbums, getCoverUrl, trackAlbumClick, trackPageView } from '../services/api';
-import { Camera, MapPin, Calendar, ArrowRight, Aperture, Mail, ExternalLink, ChevronDown } from 'lucide-react';
+import { getPublishedAlbums, getCoverUrl, trackAlbumClick, trackPageView, getPublicStats } from '../services/api';
+import { Camera, MapPin, Calendar, ArrowRight, Aperture, Mail, ExternalLink, ChevronDown, MessageCircle, Award, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 // Inline Instagram SVG (lucide-react v1.11.0 doesn't export Instagram)
@@ -25,6 +25,8 @@ const Instagram = ({ className = '', ...props }) => (
 const IG_HANDLE = 'ohmaishoot';
 const IG_URL = `https://instagram.com/${IG_HANDLE}`;
 const EMAIL = 'ohmaishoot@gmail.com';
+const WHATSAPP_NUMBER = '60123456789'; // TODO: tukar ke nombor sebenar Syuk
+const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hai Syuk, saya nak tanya pasal gambar marathon...')}`;
 const MARATHONHUB_URL = 'https://marathonhub.ohmaishoot.com';
 
 function formatDate(d) {
@@ -41,14 +43,21 @@ function formatDate(d) {
 export default function Home() {
   const [albums, setAlbums] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [pubStats, setPubStats] = useState(null);
 
   useEffect(() => {
     let mounted = true;
     trackPageView('/');
     (async () => {
       try {
-        const data = await getPublishedAlbums();
-        if (mounted) setAlbums(data || []);
+        const [data, stats] = await Promise.all([
+          getPublishedAlbums(),
+          getPublicStats().catch(() => null),
+        ]);
+        if (mounted) {
+          setAlbums(data || []);
+          setPubStats(stats);
+        }
       } catch (e) {
         console.error('Failed to load albums', e);
       } finally {
@@ -182,6 +191,26 @@ export default function Home() {
               <span className="text-xs font-bold tracking-widest uppercase text-white/70">Latest</span>
               <span className="text-sm font-bold truncate max-w-[60vw] md:max-w-md">{heroAlbum.event_name}</span>
               <span className="text-xs text-white/60 hidden sm:inline">· {formatDate(heroAlbum.event_date)}</span>
+            </div>
+          )}
+
+          {/* Trust counters */}
+          {pubStats && (
+            <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
+              {[
+                { v: `${pubStats.events}+`, l: 'Events Liput', i: Calendar },
+                { v: pubStats.photos > 1000 ? `${(pubStats.photos / 1000).toFixed(0)}K+` : `${pubStats.photos}+`, l: 'Gambar', i: ImageIcon },
+                { v: `${pubStats.locations}+`, l: 'Lokasi', i: MapPin },
+                { v: `${pubStats.years}+`, l: 'Tahun', i: Award },
+              ].map((s, i) => (
+                <div key={i} className="bg-white/5 backdrop-blur-md border border-white/15 rounded-xl px-4 py-3 text-white">
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                    <s.i className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-2xl md:text-3xl font-black tracking-tight">{s.v}</span>
+                  </div>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/60">{s.l}</div>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -457,6 +486,86 @@ export default function Home() {
           />
         </div>
       </section>
+
+      {/* ─── PHOTOGRAPHER PROFILE ─── */}
+      <section className="bg-white border-y border-gray-100">
+        <div className="max-w-6xl mx-auto px-6 py-20 md:py-24 grid grid-cols-1 lg:grid-cols-5 gap-12 items-center">
+          <div className="lg:col-span-2 order-2 lg:order-1">
+            <div className="relative aspect-[4/5] rounded-3xl overflow-hidden bg-gradient-to-br from-zinc-900 to-zinc-700 shadow-2xl">
+              {/* Mascot / portrait placeholder — fallback to logo if no portrait yet */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-48 h-48 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center">
+                  <span className="text-7xl">📸</span>
+                </div>
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black to-transparent">
+                <div className="flex items-center gap-2 text-white/80 text-xs font-bold uppercase tracking-widest mb-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  Available Untuk Booking
+                </div>
+                <div className="text-white font-black text-xl">Syuk · OhMaiShoot</div>
+              </div>
+            </div>
+          </div>
+          <div className="lg:col-span-3 order-1 lg:order-2">
+            <span className="text-[10px] font-bold tracking-[0.4em] uppercase text-emerald-600 mb-3 block">
+              Meet The Shooter
+            </span>
+            <h2 className="text-3xl md:text-5xl font-black tracking-[-0.03em] text-gray-900 mb-5 leading-tight">
+              Solo photographer.<br />
+              <span className="text-gray-400">Setiap muka penting.</span>
+            </h2>
+            <p className="text-gray-600 leading-relaxed text-base md:text-lg mb-6">
+              Saya tangkap setiap pelari — bukan model je. Bib 1 sampai bib akhir, depan barisan sampai walker terakhir. Sebab tu setiap album OhMaiShoot lengkap, bukan curated highlights.
+            </p>
+            <div className="grid grid-cols-3 gap-3 mb-7">
+              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-center">
+                <div className="text-emerald-700 font-black text-xl">DSLR</div>
+                <div className="text-[10px] font-bold uppercase tracking-widest text-emerald-700/70 mt-0.5">Full-frame</div>
+              </div>
+              <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-center">
+                <div className="text-indigo-700 font-black text-xl">24h</div>
+                <div className="text-[10px] font-bold uppercase tracking-widest text-indigo-700/70 mt-0.5">Delivery</div>
+              </div>
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-center">
+                <div className="text-amber-700 font-black text-xl">100%</div>
+                <div className="text-[10px] font-bold uppercase tracking-widest text-amber-700/70 mt-0.5">Coverage</div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href={WHATSAPP_URL}
+                target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-emerald-500 text-white px-6 py-3 rounded-full font-bold hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-500/30"
+              >
+                <MessageCircle className="w-4 h-4" />
+                WhatsApp Booking
+              </a>
+              <a
+                href={`mailto:${EMAIL}?subject=Booking%20OhMaiShoot`}
+                className="inline-flex items-center gap-2 bg-gray-100 text-gray-800 px-6 py-3 rounded-full font-bold hover:bg-gray-200 transition-colors"
+              >
+                <Mail className="w-4 h-4" />
+                Email Saya
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── STICKY WHATSAPP FAB ─── */}
+      <a
+        href={WHATSAPP_URL}
+        target="_blank" rel="noopener noreferrer"
+        aria-label="WhatsApp booking"
+        className="fixed bottom-5 right-5 z-40 group flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full shadow-2xl shadow-emerald-500/40 transition-all hover:-translate-y-0.5 pl-4 pr-5 py-3"
+      >
+        <span className="relative flex">
+          <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
+          <MessageCircle className="relative w-5 h-5" />
+        </span>
+        <span className="font-bold text-sm hidden sm:inline">Chat WhatsApp</span>
+      </a>
 
       {/* ─── DIRECTORY CROSS-LINK ─── */}
       <section className="bg-white border-y border-gray-100">

@@ -31,7 +31,19 @@ class AlbumClick(Base):
     device = Column(String, nullable=True)         # mobile / desktop / tablet
     source = Column(String, nullable=True)         # instagram / google / direct / etc.
 
-Index("ix_album_clicks_album_clicked", AlbumClick.album_id, AlbumClick.clicked_at)
+class BibSearch(Base):
+    """Tracks bib-number searches — proxy for runner intent + popular events."""
+    __tablename__ = "bib_searches"
+
+    id = Column(Integer, primary_key=True, index=True)
+    album_id = Column(Integer, ForeignKey("albums.id", ondelete="SET NULL"), nullable=True, index=True)
+    bib = Column(String, index=True)
+    searched_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    ip_hash = Column(String, nullable=True, index=True)
+    user_agent = Column(String, nullable=True)
+
+
+Index("ix_bib_searches_album_at", BibSearch.album_id, BibSearch.searched_at)
 
 
 class PageView(Base):

@@ -36,6 +36,8 @@ def _run_migrations():
                 conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_albums_slug ON albums(slug)"))
             if "description" not in cols:
                 conn.execute(text("ALTER TABLE albums ADD COLUMN description VARCHAR"))
+            if "photo_count" not in cols:
+                conn.execute(text("ALTER TABLE albums ADD COLUMN photo_count INTEGER DEFAULT 0"))
         if "album_clicks" in insp.get_table_names():
             cols = {c["name"] for c in insp.get_columns("album_clicks")}
             if "device" not in cols:
@@ -874,6 +876,121 @@ def backfill_slugs(db: Session = Depends(get_db), current_user: str = Depends(ge
 
 # ── Dynamic sitemap.xml ───────────────────────────────────────────
 from fastapi.responses import Response
+
+# ── Public stats (hero counter) ───────────────────────────────────
+@app.get("/stats/public")
+def public_stats(db: Session = Depends(get_db)):
+    """Trust-signal counters shown on the homepage hero."""
+    total_events = db.query(func.count(models.Album.id)).filter(models.Album.is_published == True).scalar() or 0
+    total_photos = db.query(func.coalesce(func.sum(models.Album.photo_count), 0)).filter(models.Album.is_published == True).scalar() or 0
+    # Years active = distinct YYYY in event_date
+    years = db.query(func.substr(models.Album.event_date, 1, 4)).filter(models.Album.is_published == True).distinct().all()
+    total_years = len([y[0] for y in years if y[0]])
+    distinct_locations = db.query(func.count(func.distinct(models.Album.location))).filter(models.Album.is_published == True, models.Album.location != "").scalar() or 0
+    return {
+        "events": total_events,
+        "photos": int(total_photos or 0),
+        "years": max(total_years, 1),
+        "locations": distinct_locations,
+    }
+
+
+# ── Public bib search ─────────────────────────────────────────────
+class BibSearchIn(BaseModel):
+    bib: str
+
+
+@app.post("/events/{slug}/bib-search", status_code=204)
+def track_bib_search(
+    slug: str,
+    payload: BibSearchIn,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Track when a user searches for their bib on an event page.
+
+    The actual search happens on PhotoHawk (we redirect there with the bib);
+    this is purely a signal so we can show "12 runners cari bib hari ni" + drive content priorities.
+    """
+    bib = (payload.bib or "").strip()
+    if not bib or len(bib) > 32:
+        return
+    album = (
+        db.query(models.Album)
+        .filter(models.Album.slug == slug, models.Album.is_published == True)
+        .first()
+    )
+    ua, ip_hash, _device, _src = _enrich_request(request)
+    if _is_bot(ua):
+        return
+    db.add(models.BibSearch(
+        album_id=album.id if album else None,
+        bib=bib[:32],
+        ip_hash=ip_hash,
+        user_agent=ua,
+    ))
+    db.commit()
+    return
+
+
+# ── Admin: photo count + bib stats ────────────────────────────────
+class PhotoCountIn(BaseModel):
+    photo_count: int
+
+
+@app.patch("/admin/albums/{album_id}/photo-count")
+def update_photo_count(
+    album_id: int,
+    payload: PhotoCountIn,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user),
+):
+    a = db.query(models.Album).filter(models.Album.id == album_id).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Album not found")
+    a.photo_count = max(0, int(payload.photo_count or 0))
+    db.commit()
+    return {"ok": True, "photo_count": a.photo_count}
+
+
+@app.get("/admin/stats/bib")
+def stats_bib(
+    days: int = 30,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user),
+):
+    days = max(1, min(365, days))
+    since = datetime.utcnow() - timedelta(days=days)
+    rows = (
+        db.query(
+            models.BibSearch.album_id,
+            func.count(models.BibSearch.id).label("c"),
+            func.count(func.distinct(models.BibSearch.ip_hash)).label("u"),
+        )
+        .filter(models.BibSearch.searched_at >= since)
+        .group_by(models.BibSearch.album_id)
+        .order_by(desc("c"))
+        .limit(limit)
+        .all()
+    )
+    album_ids = [r.album_id for r in rows if r.album_id]
+    albums = {a.id: a for a in db.query(models.Album).filter(models.Album.id.in_(album_ids)).all()} if album_ids else {}
+    total = db.query(func.count(models.BibSearch.id)).filter(models.BibSearch.searched_at >= since).scalar() or 0
+    return {
+        "total": total,
+        "by_event": [
+            {
+                "album_id": r.album_id,
+                "event_name": albums[r.album_id].event_name if r.album_id in albums else None,
+                "slug": albums[r.album_id].slug if r.album_id in albums else None,
+                "searches": r.c,
+                "unique": r.u,
+            }
+            for r in rows
+        ],
+    }
+
 
 @app.get("/sitemap.xml")
 def sitemap(db: Session = Depends(get_db)):
