@@ -55,6 +55,37 @@ def _run_migrations():
             if "source" not in cols:
                 conn.execute(text("ALTER TABLE album_clicks ADD COLUMN source VARCHAR"))
 
+        # Seed default settings (safe to re-run, INSERT OR IGNORE)
+        if "settings" in insp.get_table_names():
+            defaults = [
+                ("brand_name",       "OhMaiShoot",                                  "Nama Brand",                  1),
+                ("whatsapp_number",  "60133157062",                                 "WhatsApp Number",             1),
+                ("whatsapp_message", "Hi Syuk, saya nak tanya pasal gambar event",  "Default WhatsApp Message",    1),
+                ("contact_email",    "ohmaishoot@gmail.com",                        "Email Contact",               1),
+                ("instagram_handle", "ohmaishoot",                                  "Instagram Handle",            1),
+                ("photographer_slug","saya",                                        "Faces Photographer Slug",     0),
+                ("default_threshold","0.7",                                         "Default Face Match Threshold",0),
+                ("footer_text",      "Solo marathon photographer Malaysia",         "Footer Tagline",              1),
+            ]
+            for k, v, label, is_pub in defaults:
+                conn.execute(text(
+                    "INSERT OR IGNORE INTO settings (key, value, label, is_public, updated_at) "
+                    "VALUES (:k, :v, :l, :p, CURRENT_TIMESTAMP)"
+                ), {"k": k, "v": v, "l": label, "p": is_pub})
+
+        # Seed default pricing tiers (safe to re-run, INSERT OR IGNORE)
+        if "pricing_tiers" in insp.get_table_names():
+            tiers = [
+                ("single", "1 keping",  8,  1,    1, 1),
+                ("pack5",  "5 keping",  30, 5,    1, 2),
+                ("all",    "Semua",     50, None, 1, 3),
+            ]
+            for key, label, amt, mx, active, sort in tiers:
+                conn.execute(text(
+                    "INSERT OR IGNORE INTO pricing_tiers (key, label, amount, max_photos, active, sort_order, updated_at) "
+                    "VALUES (:k, :l, :a, :m, :ac, :s, CURRENT_TIMESTAMP)"
+                ), {"k": key, "l": label, "a": amt, "m": mx, "ac": active, "s": sort})
+
 
 _run_migrations()
 
@@ -1128,12 +1159,61 @@ FACES_BASE_URL = os.getenv("FACES_BASE_URL", "https://face.ohmaishoot.com").rstr
 FACES_DOWNLOAD_SECRET = os.getenv("FACES_DOWNLOAD_SECRET", "").strip()
 PUBLIC_URL = os.getenv("PUBLIC_URL", "https://ohmaishoot.com").rstrip("/")
 
-# Pricing — Tier B
-PRICING = {
-    "single": {"label": "1 keping", "amount": 8, "max_photos": 1},
-    "pack5":  {"label": "5 keping", "amount": 30, "max_photos": 5},
-    "all":    {"label": "Semua gambar", "amount": 50, "max_photos": 9999},
-}
+# Pricing — loaded from DB (pricing_tiers table). Fallback to Tier B if DB empty.
+def get_pricing_dict(db: Session) -> dict:
+    """Load active pricing tiers from DB, ordered by sort_order."""
+    rows = db.query(models.PricingTier).filter(
+        models.PricingTier.active == True
+    ).order_by(models.PricingTier.sort_order).all()
+    if not rows:
+        # Fallback (should never happen — migration seeds defaults)
+        return {
+            "single": {"label": "1 keping", "amount": 8,  "max_photos": 1},
+            "pack5":  {"label": "5 keping", "amount": 30, "max_photos": 5},
+            "all":    {"label": "Semua",    "amount": 50, "max_photos": 9999},
+        }
+    return {
+        r.key: {
+            "label": r.label,
+            "amount": r.amount,
+            "max_photos": r.max_photos if r.max_photos is not None else 9999,
+        }
+        for r in rows
+    }
+
+
+# Backwards-compat shim — code paths yang reference PRICING[...] dapat live snapshot
+class _PricingProxy:
+    def __getitem__(self, key):
+        from database import SessionLocal
+        with SessionLocal() as db:
+            d = get_pricing_dict(db)
+        if key not in d:
+            raise KeyError(key)
+        return d[key]
+
+    def __contains__(self, key):
+        from database import SessionLocal
+        with SessionLocal() as db:
+            return key in get_pricing_dict(db)
+
+    def keys(self):
+        from database import SessionLocal
+        with SessionLocal() as db:
+            return list(get_pricing_dict(db).keys())
+
+    def get(self, key, default=None):
+        from database import SessionLocal
+        with SessionLocal() as db:
+            return get_pricing_dict(db).get(key, default)
+
+    def items(self):
+        from database import SessionLocal
+        with SessionLocal() as db:
+            return list(get_pricing_dict(db).items())
+
+
+PRICING = _PricingProxy()
 
 
 @app.post("/shop/search")
@@ -1426,8 +1506,107 @@ def stream_paid_photo(ext_ref: str, guid: str, db: Session = Depends(get_db)):
 
 # ── Pricing exposure for frontend ─────────────────────────────────
 @app.get("/shop/pricing")
-def shop_pricing():
-    return PRICING
+def shop_pricing(db: Session = Depends(get_db)):
+    return get_pricing_dict(db)
+
+
+# ── Public settings (brand, contact, etc.) ────────────────────────
+@app.get("/settings/public")
+def public_settings(db: Session = Depends(get_db)):
+    """Return all is_public=True settings as a flat key→value map."""
+    rows = db.query(models.Setting).filter(models.Setting.is_public == True).all()
+    return {r.key: r.value for r in rows}
+
+
+# ── Admin: settings CRUD ──────────────────────────────────────────
+@app.get("/admin/settings")
+def admin_list_settings(
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user),
+):
+    rows = db.query(models.Setting).order_by(models.Setting.key).all()
+    return [
+        {
+            "key": r.key,
+            "value": r.value,
+            "label": r.label,
+            "is_public": r.is_public,
+            "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+        }
+        for r in rows
+    ]
+
+
+@app.put("/admin/settings/{key}")
+def admin_update_setting(
+    key: str,
+    value: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user),
+):
+    row = db.query(models.Setting).filter(models.Setting.key == key).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Setting tak wujud")
+    row.value = value
+    row.updated_at = datetime.utcnow()
+    db.commit()
+    return {"key": row.key, "value": row.value, "updated_at": row.updated_at.isoformat()}
+
+
+# ── Admin: pricing tiers CRUD ─────────────────────────────────────
+@app.get("/admin/pricing")
+def admin_list_pricing(
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user),
+):
+    rows = db.query(models.PricingTier).order_by(models.PricingTier.sort_order).all()
+    return [
+        {
+            "id": r.id,
+            "key": r.key,
+            "label": r.label,
+            "amount": r.amount,
+            "max_photos": r.max_photos,
+            "active": r.active,
+            "sort_order": r.sort_order,
+            "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+        }
+        for r in rows
+    ]
+
+
+@app.put("/admin/pricing/{key}")
+def admin_update_pricing(
+    key: str,
+    label: Optional[str] = Form(None),
+    amount: Optional[int] = Form(None),
+    max_photos: Optional[int] = Form(None),
+    active: Optional[bool] = Form(None),
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user),
+):
+    row = db.query(models.PricingTier).filter(models.PricingTier.key == key).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Tier tak wujud")
+    if label is not None:
+        row.label = label
+    if amount is not None:
+        if amount < 1:
+            raise HTTPException(status_code=400, detail="Amount mesti >= RM1")
+        row.amount = amount
+    if max_photos is not None:
+        row.max_photos = max_photos if max_photos > 0 else None
+    if active is not None:
+        row.active = active
+    row.updated_at = datetime.utcnow()
+    db.commit()
+    return {
+        "key": row.key,
+        "label": row.label,
+        "amount": row.amount,
+        "max_photos": row.max_photos,
+        "active": row.active,
+    }
 
 
 # Need to import JSONResponse for shop_search error pass-through

@@ -9,10 +9,12 @@ import {
   getCoverUrl,
   bulkUpdatePhotoCounts,
 } from '../services/api';
-import { Lock, Plus, Upload, Link as LinkIcon, MapPin, Calendar, Type, Loader2, Image as ImageIcon, Eye, EyeOff, Trash2, Edit2, LogOut, BarChart3, FolderOpen, Mail, Hash } from 'lucide-react';
+import { Lock, Plus, Upload, Link as LinkIcon, MapPin, Calendar, Type, Loader2, Image as ImageIcon, Eye, EyeOff, Trash2, Edit2, LogOut, BarChart3, FolderOpen, Mail, Hash, Settings as SettingsIcon, Tag, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Dashboard from './Dashboard';
 import Leads from './Leads';
+import AdminSettings from './AdminSettings';
+import AdminPricing from './AdminPricing';
 
 export default function Admin() {
   const [token, setToken] = useState(localStorage.getItem('token'));
@@ -274,10 +276,34 @@ export default function Admin() {
             <Mail className="w-4 h-4" />
             Leads
           </button>
+          <button
+            onClick={() => setTab('pricing')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
+              tab === 'pricing'
+                ? 'bg-black text-white shadow'
+                : 'text-gray-600 hover:text-black'
+            }`}
+          >
+            <Tag className="w-4 h-4" />
+            Harga
+          </button>
+          <button
+            onClick={() => setTab('settings')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
+              tab === 'settings'
+                ? 'bg-black text-white shadow'
+                : 'text-gray-600 hover:text-black'
+            }`}
+          >
+            <SettingsIcon className="w-4 h-4" />
+            Tetapan
+          </button>
         </div>
 
         {tab === 'dashboard' && <Dashboard />}
         {tab === 'leads' && <Leads />}
+        {tab === 'pricing' && <AdminPricing />}
+        {tab === 'settings' && <AdminSettings />}
 
         {tab === 'events' && (
         <>

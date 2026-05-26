@@ -124,3 +124,30 @@ class Order(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
     ip_hash = Column(String, nullable=True)
     user_agent = Column(String, nullable=True)
+
+
+class Setting(Base):
+    """Site-wide config (key-value). Public-safe + private namespaces."""
+    __tablename__ = "settings"
+
+    key = Column(String, primary_key=True, index=True)
+    value = Column(String, nullable=True)
+    label = Column(String, nullable=True)        # human-readable label for admin UI
+    is_public = Column(Boolean, default=False)   # exposed via /api/settings/public
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow,
+                        onupdate=datetime.datetime.utcnow)
+
+
+class PricingTier(Base):
+    """Shop pricing tiers — tukar harga via admin tanpa redeploy."""
+    __tablename__ = "pricing_tiers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String, unique=True, index=True)  # 'single' | 'pack5' | 'all'
+    label = Column(String)                          # '1 keping' | '5 keping' | 'Semua'
+    amount = Column(Integer)                        # ringgit
+    max_photos = Column(Integer, nullable=True)     # null = unlimited
+    active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow,
+                        onupdate=datetime.datetime.utcnow)

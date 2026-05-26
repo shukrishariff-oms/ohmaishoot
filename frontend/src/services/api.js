@@ -190,3 +190,37 @@ export const getStatsBib = async (days = 30, limit = 20) => {
   const response = await api.get('/admin/stats/bib', { params: { days, limit } });
   return response.data;
 };
+
+// ── Public settings ─────────────────────────────────────────────
+export const getPublicSettings = async () => {
+  const response = await api.get('/settings/public');
+  return response.data;
+};
+
+// ── Admin: settings ─────────────────────────────────────────────
+export const getAdminSettings = async () => {
+  const response = await api.get('/admin/settings');
+  return response.data;
+};
+
+export const updateSetting = async (key, value) => {
+  const formData = new FormData();
+  formData.append('value', value);
+  const response = await api.put(`/admin/settings/${key}`, formData);
+  return response.data;
+};
+
+// ── Admin: pricing tiers ────────────────────────────────────────
+export const getAdminPricing = async () => {
+  const response = await api.get('/admin/pricing');
+  return response.data;
+};
+
+export const updatePricing = async (key, fields) => {
+  const formData = new FormData();
+  Object.entries(fields).forEach(([k, v]) => {
+    if (v !== undefined && v !== null) formData.append(k, v);
+  });
+  const response = await api.put(`/admin/pricing/${key}`, formData);
+  return response.data;
+};
