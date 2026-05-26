@@ -1,9 +1,11 @@
 import os
+import re
 import shutil
 import uuid
 import hashlib
 from typing import List, Optional
 from datetime import datetime, timedelta, date
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile, Form, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -97,6 +99,75 @@ def _hash_ip(ip: str) -> str:
     return hashlib.sha256(f"{IP_HASH_SALT}|{ip}".encode("utf-8")).hexdigest()[:32]
 
 
+_BOT_RE = re.compile(r"bot|crawl|spider|slurp|bingpreview|facebookexternalhit|preview|fetch|monitor|uptime|wget|curl/|python-requests", re.IGNORECASE)
+_MOBILE_RE = re.compile(r"iphone|android.*mobile|windows phone|ipod", re.IGNORECASE)
+_TABLET_RE = re.compile(r"ipad|tablet|android(?!.*mobile)", re.IGNORECASE)
+
+
+def _classify_device(ua: str) -> str:
+    if not ua:
+        return "unknown"
+    if _MOBILE_RE.search(ua):
+        return "mobile"
+    if _TABLET_RE.search(ua):
+        return "tablet"
+    return "desktop"
+
+
+def _is_bot(ua: str) -> bool:
+    return bool(ua and _BOT_RE.search(ua))
+
+
+_SOURCE_PATTERNS = [
+    ("instagram", re.compile(r"instagram\.com|l\.instagram|ig\.me|igshid", re.IGNORECASE)),
+    ("facebook", re.compile(r"facebook\.com|fb\.com|m\.facebook|l\.facebook|fbclid", re.IGNORECASE)),
+    ("google", re.compile(r"google\.|gclid", re.IGNORECASE)),
+    ("whatsapp", re.compile(r"whatsapp|wa\.me", re.IGNORECASE)),
+    ("tiktok", re.compile(r"tiktok|ttclid", re.IGNORECASE)),
+    ("twitter", re.compile(r"twitter\.com|t\.co|x\.com|twclid", re.IGNORECASE)),
+    ("youtube", re.compile(r"youtube\.com|youtu\.be", re.IGNORECASE)),
+    ("bing", re.compile(r"bing\.com", re.IGNORECASE)),
+]
+
+
+def _classify_source(referer: Optional[str], utm: Optional[str]) -> str:
+    if utm:
+        u = utm.lower().strip()
+        for name, _ in _SOURCE_PATTERNS:
+            if name in u:
+                return name
+        return u[:32]
+    if referer:
+        for name, pat in _SOURCE_PATTERNS:
+            if pat.search(referer):
+                return name
+        try:
+            host = urlparse(referer).hostname or ""
+            host = host.replace("www.", "")
+            if host and "ohmaishoot" not in host:
+                return host[:32]
+        except Exception:
+            pass
+        return "other"
+    return "direct"
+
+
+def _enrich_request(request: Optional[Request], explicit_source: Optional[str] = None):
+    """Returns (ua, ip_hash, device, source) tuple — defensive against missing request."""
+    ua = ""
+    ip = ""
+    referer = ""
+    utm = None
+    if request:
+        ua = request.headers.get("user-agent") or ""
+        ip = _client_ip(request)
+        referer = request.headers.get("referer") or ""
+        utm = request.query_params.get("utm_source") or None
+    device = _classify_device(ua)
+    source = explicit_source or _classify_source(referer, utm)
+    return ua[:255], _hash_ip(ip), device, source[:32]
+
+
 @app.post("/token", response_model=schemas.Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     if form_data.username != ADMIN_USERNAME or form_data.password != ADMIN_PASSWORD:
@@ -127,14 +198,14 @@ def get_published_albums(skip: int = 0, limit: int = 100, db: Session = Depends(
 
 
 class ClickIn(BaseModel):
-    source: Optional[str] = None  # 'hero' | 'list' | 'direct' | etc.
+    source: Optional[str] = None  # placement: 'hero' | 'list' | 'direct'
 
 
 @app.post("/albums/{album_id}/click", status_code=204)
 def track_album_click(
     album_id: int,
+    request: Request,
     payload: Optional[ClickIn] = None,
-    request: Request = None,
     db: Session = Depends(get_db),
 ):
     """Public click tracker. Fire-and-forget — never blocks the redirect."""
@@ -142,17 +213,46 @@ def track_album_click(
     if not album:
         return  # silently ignore — don't leak album existence
 
-    ip = _client_ip(request) if request else ""
-    ua = (request.headers.get("user-agent") if request else "") or ""
-    src = (payload.source if payload else None) or "direct"
+    ua, ip_hash, device, source = _enrich_request(request)
+    if _is_bot(ua):
+        return  # don't pollute stats with crawlers
 
-    click = models.AlbumClick(
+    placement = (payload.source if payload else None) or "direct"
+
+    db.add(models.AlbumClick(
         album_id=album_id,
-        referrer=src[:64],
-        user_agent=ua[:255],
-        ip_hash=_hash_ip(ip),
-    )
-    db.add(click)
+        referrer=placement[:64],
+        user_agent=ua,
+        ip_hash=ip_hash,
+        device=device,
+        source=source,
+    ))
+    db.commit()
+    return
+
+
+class PageViewIn(BaseModel):
+    path: Optional[str] = None
+
+
+@app.post("/track/view", status_code=204)
+def track_page_view(
+    request: Request,
+    payload: Optional[PageViewIn] = None,
+    db: Session = Depends(get_db),
+):
+    """Public landing tracker — denominator for conversion rate."""
+    ua, ip_hash, device, source = _enrich_request(request)
+    if _is_bot(ua):
+        return
+    path = (payload.path if payload else None) or "/"
+    db.add(models.PageView(
+        path=path[:128],
+        user_agent=ua,
+        ip_hash=ip_hash,
+        device=device,
+        source=source,
+    ))
     db.commit()
     return
 
@@ -273,7 +373,6 @@ def stats_overview(db: Session = Depends(get_db), current_user: str = Depends(ge
     published = db.query(func.count(models.Album.id)).filter(models.Album.is_published == True).scalar() or 0
     hidden = total_events - published
 
-    # Latest published event date (string YYYY-MM-DD)
     latest_event = (
         db.query(models.Album.event_date)
         .filter(models.Album.is_published == True)
@@ -282,7 +381,6 @@ def stats_overview(db: Session = Depends(get_db), current_user: str = Depends(ge
     )
     latest_event_date = latest_event[0] if latest_event else None
 
-    # Upcoming = event_date >= today
     today_str = today.isoformat()
     upcoming = (
         db.query(func.count(models.Album.id))
@@ -301,6 +399,17 @@ def stats_overview(db: Session = Depends(get_db), current_user: str = Depends(ge
         or 0
     )
 
+    # Page views — denominator for conversion
+    views_30d = db.query(func.count(models.PageView.id)).filter(models.PageView.viewed_at >= d30).scalar() or 0
+    views_7d = db.query(func.count(models.PageView.id)).filter(models.PageView.viewed_at >= d7).scalar() or 0
+    unique_views_30d = (
+        db.query(func.count(func.distinct(models.PageView.ip_hash)))
+        .filter(models.PageView.viewed_at >= d30, models.PageView.ip_hash != "")
+        .scalar()
+        or 0
+    )
+    conversion_30d = round((clicks_30d / views_30d) * 100, 1) if views_30d else 0.0
+
     # Daily clicks last 30d
     daily_rows = (
         db.query(
@@ -312,13 +421,30 @@ def stats_overview(db: Session = Depends(get_db), current_user: str = Depends(ge
         .order_by("d")
         .all()
     )
-    daily = {str(r.d): r.c for r in daily_rows}
+    daily_clicks = {str(r.d): r.c for r in daily_rows}
+
+    daily_view_rows = (
+        db.query(
+            func.date(models.PageView.viewed_at).label("d"),
+            func.count(models.PageView.id).label("c"),
+        )
+        .filter(models.PageView.viewed_at >= d30)
+        .group_by("d")
+        .order_by("d")
+        .all()
+    )
+    daily_views = {str(r.d): r.c for r in daily_view_rows}
+
     series = []
     for i in range(29, -1, -1):
         day = (today - timedelta(days=i)).isoformat()
-        series.append({"date": day, "clicks": daily.get(day, 0)})
+        series.append({
+            "date": day,
+            "clicks": daily_clicks.get(day, 0),
+            "views": daily_views.get(day, 0),
+        })
 
-    # Events per month (last 12 months by event_date)
+    # Events per month (last 12 months)
     months_rows = (
         db.query(
             func.substr(models.Album.event_date, 1, 7).label("ym"),
@@ -344,6 +470,12 @@ def stats_overview(db: Session = Depends(get_db), current_user: str = Depends(ge
             "last_7d": clicks_7d,
             "last_30d": clicks_30d,
             "unique_visitors_30d": unique_visitors_30d,
+        },
+        "views": {
+            "last_7d": views_7d,
+            "last_30d": views_30d,
+            "unique_30d": unique_views_30d,
+            "conversion_30d_pct": conversion_30d,
         },
         "daily_clicks_30d": series,
         "events_per_month": events_per_month,
@@ -396,3 +528,130 @@ def stats_albums(
         }
         for r in rows
     ]
+
+
+@app.get("/admin/stats/sources")
+def stats_sources(
+    days: int = 30,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user),
+):
+    """Traffic sources breakdown — IG/Google/FB/etc. — based on Referer + utm_source."""
+    days = max(1, min(365, days))
+    since = datetime.utcnow() - timedelta(days=days)
+
+    click_rows = (
+        db.query(models.AlbumClick.source, func.count(models.AlbumClick.id))
+        .filter(models.AlbumClick.clicked_at >= since)
+        .group_by(models.AlbumClick.source)
+        .all()
+    )
+    view_rows = (
+        db.query(models.PageView.source, func.count(models.PageView.id))
+        .filter(models.PageView.viewed_at >= since)
+        .group_by(models.PageView.source)
+        .all()
+    )
+
+    sources = {}
+    for s, c in view_rows:
+        key = s or "direct"
+        sources.setdefault(key, {"source": key, "views": 0, "clicks": 0})
+        sources[key]["views"] = c
+    for s, c in click_rows:
+        key = s or "direct"
+        sources.setdefault(key, {"source": key, "views": 0, "clicks": 0})
+        sources[key]["clicks"] = c
+
+    out = list(sources.values())
+    for row in out:
+        v = row["views"]
+        row["conversion_pct"] = round((row["clicks"] / v) * 100, 1) if v else 0.0
+    out.sort(key=lambda r: (r["clicks"], r["views"]), reverse=True)
+    return out
+
+
+@app.get("/admin/stats/devices")
+def stats_devices(
+    days: int = 30,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user),
+):
+    """Device split (mobile / desktop / tablet)."""
+    days = max(1, min(365, days))
+    since = datetime.utcnow() - timedelta(days=days)
+
+    click_rows = (
+        db.query(models.AlbumClick.device, func.count(models.AlbumClick.id))
+        .filter(models.AlbumClick.clicked_at >= since)
+        .group_by(models.AlbumClick.device)
+        .all()
+    )
+    view_rows = (
+        db.query(models.PageView.device, func.count(models.PageView.id))
+        .filter(models.PageView.viewed_at >= since)
+        .group_by(models.PageView.device)
+        .all()
+    )
+
+    devices = {}
+    for d, c in view_rows:
+        key = d or "unknown"
+        devices.setdefault(key, {"device": key, "views": 0, "clicks": 0})
+        devices[key]["views"] = c
+    for d, c in click_rows:
+        key = d or "unknown"
+        devices.setdefault(key, {"device": key, "views": 0, "clicks": 0})
+        devices[key]["clicks"] = c
+
+    out = list(devices.values())
+    out.sort(key=lambda r: (r["views"], r["clicks"]), reverse=True)
+    return out
+
+
+@app.get("/admin/stats/hourly")
+def stats_hourly(
+    days: int = 30,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user),
+):
+    """Hour-of-day heatmap (0-23) — when buyers actually visit.
+
+    Note: SQLite stores naive UTC; users in MY are UTC+8. We shift on read.
+    """
+    days = max(1, min(365, days))
+    since = datetime.utcnow() - timedelta(days=days)
+
+    # Use func.strftime which works in SQLite. For Postgres later, swap to extract('hour' ...).
+    rows = (
+        db.query(
+            func.strftime("%w", models.AlbumClick.clicked_at).label("dow"),  # 0=Sun..6=Sat
+            func.strftime("%H", models.AlbumClick.clicked_at).label("hr"),
+            func.count(models.AlbumClick.id).label("c"),
+        )
+        .filter(models.AlbumClick.clicked_at >= since)
+        .group_by("dow", "hr")
+        .all()
+    )
+
+    # Init zero matrix [7][24]
+    matrix = [[0] * 24 for _ in range(7)]
+    for r in rows:
+        try:
+            dow = int(r.dow)
+            hr_utc = int(r.hr)
+            # shift UTC -> Asia/Kuala_Lumpur (+8h)
+            hr_local = (hr_utc + 8) % 24
+            day_shift = 1 if (hr_utc + 8) >= 24 else 0
+            dow_local = (dow + day_shift) % 7
+            matrix[dow_local][hr_local] += int(r.c or 0)
+        except (TypeError, ValueError):
+            continue
+
+    return {
+        "timezone": "Asia/Kuala_Lumpur (UTC+8)",
+        "days_window": days,
+        # day labels: 0=Sun..6=Sat (matches SQLite strftime %w)
+        "labels": ["Ahad", "Isnin", "Selasa", "Rabu", "Khamis", "Jumaat", "Sabtu"],
+        "matrix": matrix,
+    }

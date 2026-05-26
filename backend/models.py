@@ -2,13 +2,14 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, I
 from database import Base
 import datetime
 
+
 class Album(Base):
     __tablename__ = "albums"
 
     id = Column(Integer, primary_key=True, index=True)
     cover_image = Column(String, index=False)
     event_name = Column(String, index=True)
-    event_date = Column(String)  # Stored as string 'YYYY-MM-DD' for simplicity
+    event_date = Column(String)  # 'YYYY-MM-DD'
     location = Column(String)
     album_url = Column(String)
     is_published = Column(Boolean, default=False)
@@ -22,8 +23,24 @@ class AlbumClick(Base):
     id = Column(Integer, primary_key=True, index=True)
     album_id = Column(Integer, ForeignKey("albums.id", ondelete="CASCADE"), index=True)
     clicked_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
-    referrer = Column(String, nullable=True)       # e.g. hero / list / direct
+    referrer = Column(String, nullable=True)        # placement on page: hero / list / direct
     user_agent = Column(String, nullable=True)
-    ip_hash = Column(String, nullable=True, index=True)  # SHA256(ip+salt) — for unique counts, not reverse-lookup
+    ip_hash = Column(String, nullable=True, index=True)
+    device = Column(String, nullable=True)          # mobile / desktop / tablet / unknown
+    source = Column(String, nullable=True, index=True)  # instagram / google / direct / etc.
+
 
 Index("ix_album_clicks_album_clicked", AlbumClick.album_id, AlbumClick.clicked_at)
+
+
+class PageView(Base):
+    """Tracks landings on public pages — denominator for conversion rate."""
+    __tablename__ = "page_views"
+
+    id = Column(Integer, primary_key=True, index=True)
+    viewed_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    path = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
+    ip_hash = Column(String, nullable=True, index=True)
+    device = Column(String, nullable=True)
+    source = Column(String, nullable=True, index=True)

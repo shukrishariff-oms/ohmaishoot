@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getPublishedAlbums, getCoverUrl, trackAlbumClick } from '../services/api';
+import { getPublishedAlbums, getCoverUrl, trackAlbumClick, trackPageView } from '../services/api';
 import { Camera, MapPin, Calendar, ArrowRight, Aperture, Mail, ExternalLink, ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -44,6 +44,7 @@ export default function Home() {
 
   useEffect(() => {
     let mounted = true;
+    trackPageView('/');
     (async () => {
       try {
         const data = await getPublishedAlbums();
