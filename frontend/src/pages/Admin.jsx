@@ -8,9 +8,10 @@ import {
   deleteAlbum, 
   getCoverUrl 
 } from '../services/api';
-import { Lock, Plus, Upload, Link as LinkIcon, MapPin, Calendar, Type, Loader2, Image as ImageIcon, Eye, EyeOff, Trash2, Edit2, LogOut, BarChart3, FolderOpen } from 'lucide-react';
+import { Lock, Plus, Upload, Link as LinkIcon, MapPin, Calendar, Type, Loader2, Image as ImageIcon, Eye, EyeOff, Trash2, Edit2, LogOut, BarChart3, FolderOpen, Mail } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Dashboard from './Dashboard';
+import Leads from './Leads';
 
 export default function Admin() {
   const [token, setToken] = useState(localStorage.getItem('token'));
@@ -21,7 +22,7 @@ export default function Admin() {
 
   const [albums, setAlbums] = useState([]);
   const [fetchingAlbums, setFetchingAlbums] = useState(false);
-  const [tab, setTab] = useState('dashboard'); // 'dashboard' | 'events'
+  const [tab, setTab] = useState('dashboard'); // 'dashboard' | 'events' | 'leads'
   
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -231,9 +232,21 @@ export default function Admin() {
             <FolderOpen className="w-4 h-4" />
             Event Albums
           </button>
+          <button
+            onClick={() => setTab('leads')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
+              tab === 'leads'
+                ? 'bg-black text-white shadow'
+                : 'text-gray-600 hover:text-black'
+            }`}
+          >
+            <Mail className="w-4 h-4" />
+            Leads
+          </button>
         </div>
 
         {tab === 'dashboard' && <Dashboard />}
+        {tab === 'leads' && <Leads />}
 
         {tab === 'events' && (
         <>

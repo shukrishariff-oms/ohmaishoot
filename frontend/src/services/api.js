@@ -124,3 +124,32 @@ export const getStatsHourly = async (days = 30) => {
   const response = await api.get('/admin/stats/hourly', { params: { days } });
   return response.data;
 };
+
+export const getEventBySlug = async (slug) => {
+  const response = await api.get(`/events/${slug}`);
+  return response.data;
+};
+
+export const submitLead = async (payload) => {
+  const response = await api.post('/leads', payload);
+  return response.data;
+};
+
+export const getAdminLeads = async (params = {}) => {
+  const response = await api.get('/admin/leads', { params });
+  return response.data;
+};
+
+export const toggleLeadContacted = async (id) => {
+  const response = await api.patch(`/admin/leads/${id}/contacted`);
+  return response.data;
+};
+
+export const deleteLead = async (id) => {
+  await api.delete(`/admin/leads/${id}`);
+};
+
+export const backfillSlugs = async () => {
+  const response = await api.post('/admin/albums/backfill-slugs');
+  return response.data;
+};

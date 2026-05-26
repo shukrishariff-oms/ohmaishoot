@@ -655,3 +655,225 @@ def stats_hourly(
         "labels": ["Ahad", "Isnin", "Selasa", "Rabu", "Khamis", "Jumaat", "Sabtu"],
         "matrix": matrix,
     }
+
+
+# ── Slug helpers + event landing ──────────────────────────────────
+import re as _re
+
+def _slugify(text: str) -> str:
+    if not text:
+        return ""
+    s = text.lower().strip()
+    s = _re.sub(r"[^\w\s-]", "", s)
+    s = _re.sub(r"[\s_]+", "-", s)
+    s = _re.sub(r"-+", "-", s).strip("-")
+    return s[:80]
+
+
+def _ensure_slug(db: Session, album: "models.Album") -> str:
+    if album.slug:
+        return album.slug
+    base = _slugify(album.event_name or f"event-{album.id}") or f"event-{album.id}"
+    candidate = base
+    n = 1
+    while db.query(models.Album).filter(models.Album.slug == candidate, models.Album.id != album.id).first():
+        n += 1
+        candidate = f"{base}-{n}"
+    album.slug = candidate
+    db.commit()
+    return candidate
+
+
+@app.get("/events/{slug}")
+def get_event_by_slug(slug: str, db: Session = Depends(get_db)):
+    """Public event landing payload — used by /e/:slug page."""
+    album = (
+        db.query(models.Album)
+        .filter(models.Album.slug == slug, models.Album.is_published == True)
+        .first()
+    )
+    if not album:
+        # fallback: try to match by slugified event_name (legacy rows without slug)
+        for row in db.query(models.Album).filter(models.Album.is_published == True).all():
+            if _slugify(row.event_name or "") == slug:
+                _ensure_slug(db, row)
+                album = row
+                break
+        if not album:
+            raise HTTPException(status_code=404, detail="Event not found")
+
+    if not album.slug:
+        _ensure_slug(db, album)
+
+    # Related: 3 most recent OTHER published events
+    related = (
+        db.query(models.Album)
+        .filter(models.Album.is_published == True, models.Album.id != album.id)
+        .order_by(models.Album.event_date.desc())
+        .limit(3)
+        .all()
+    )
+
+    return {
+        "id": album.id,
+        "slug": album.slug,
+        "event_name": album.event_name,
+        "event_date": album.event_date,
+        "location": album.location,
+        "album_url": album.album_url,
+        "cover_image": album.cover_image,
+        "description": album.description,
+        "related": [
+            {
+                "id": r.id,
+                "slug": r.slug or _ensure_slug(db, r),
+                "event_name": r.event_name,
+                "event_date": r.event_date,
+                "location": r.location,
+                "cover_image": r.cover_image,
+            }
+            for r in related
+        ],
+    }
+
+
+# ── Public lead capture ───────────────────────────────────────────
+class LeadIn(BaseModel):
+    album_id: Optional[int] = None
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    bib: Optional[str] = None
+    note: Optional[str] = None
+    interest: Optional[str] = None  # 'face-search' | 'package' | etc.
+
+
+_EMAIL_RE = _re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+@app.post("/leads", status_code=201)
+def submit_lead(payload: LeadIn, request: Request, db: Session = Depends(get_db)):
+    # Need at least one contact channel
+    email = (payload.email or "").strip().lower() or None
+    phone = (payload.phone or "").strip() or None
+    if not email and not phone:
+        raise HTTPException(status_code=400, detail="Sila masukkan email atau nombor telefon.")
+    if email and not _EMAIL_RE.match(email):
+        raise HTTPException(status_code=400, detail="Format email tidak sah.")
+
+    ua, ip_hash, _device, _src = _enrich_request(request)
+    if _is_bot(ua):
+        # silently 201 to bots — don't help spammers learn the rules
+        return {"ok": True}
+
+    lead = models.Lead(
+        album_id=payload.album_id,
+        name=(payload.name or "").strip()[:80] or None,
+        email=email,
+        phone=phone[:32] if phone else None,
+        bib=(payload.bib or "").strip()[:32] or None,
+        note=(payload.note or "").strip()[:500] or None,
+        interest=(payload.interest or "face-search")[:32],
+        ip_hash=ip_hash,
+        user_agent=ua,
+    )
+    db.add(lead)
+    db.commit()
+    db.refresh(lead)
+    return {"ok": True, "id": lead.id}
+
+
+# ── Admin: leads + slug backfill ──────────────────────────────────
+@app.get("/admin/leads")
+def list_leads(
+    skip: int = 0,
+    limit: int = 100,
+    contacted: Optional[bool] = None,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user),
+):
+    q = db.query(models.Lead)
+    if contacted is not None:
+        q = q.filter(models.Lead.contacted == contacted)
+    rows = q.order_by(models.Lead.created_at.desc()).offset(skip).limit(limit).all()
+
+    # Attach event_name in one extra query
+    album_ids = {r.album_id for r in rows if r.album_id}
+    albums = {a.id: a for a in db.query(models.Album).filter(models.Album.id.in_(album_ids)).all()} if album_ids else {}
+
+    return [
+        {
+            "id": r.id,
+            "album_id": r.album_id,
+            "event_name": albums[r.album_id].event_name if r.album_id in albums else None,
+            "name": r.name,
+            "email": r.email,
+            "phone": r.phone,
+            "bib": r.bib,
+            "note": r.note,
+            "interest": r.interest,
+            "contacted": r.contacted,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
+
+
+@app.patch("/admin/leads/{lead_id}/contacted")
+def toggle_lead_contacted(lead_id: int, db: Session = Depends(get_db), current_user: str = Depends(get_current_user)):
+    r = db.query(models.Lead).filter(models.Lead.id == lead_id).first()
+    if not r:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    r.contacted = not r.contacted
+    db.commit()
+    return {"ok": True, "contacted": r.contacted}
+
+
+@app.delete("/admin/leads/{lead_id}", status_code=204)
+def delete_lead(lead_id: int, db: Session = Depends(get_db), current_user: str = Depends(get_current_user)):
+    r = db.query(models.Lead).filter(models.Lead.id == lead_id).first()
+    if not r:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    db.delete(r)
+    db.commit()
+    return
+
+
+@app.post("/admin/albums/backfill-slugs")
+def backfill_slugs(db: Session = Depends(get_db), current_user: str = Depends(get_current_user)):
+    """One-shot: assign slugs to any album that doesn't have one."""
+    updated = 0
+    for a in db.query(models.Album).filter((models.Album.slug == None) | (models.Album.slug == "")).all():
+        _ensure_slug(db, a)
+        updated += 1
+    return {"updated": updated}
+
+
+# ── Dynamic sitemap.xml ───────────────────────────────────────────
+from fastapi.responses import Response
+
+@app.get("/sitemap.xml")
+def sitemap(db: Session = Depends(get_db)):
+    """Auto-generated XML sitemap. Includes / and every /e/<slug> for published albums."""
+    rows = (
+        db.query(models.Album)
+        .filter(models.Album.is_published == True)
+        .order_by(models.Album.event_date.desc())
+        .all()
+    )
+    base = os.getenv("PUBLIC_URL", "https://ohmaishoot.com").rstrip("/")
+    today = date.today().isoformat()
+
+    parts = ['<?xml version="1.0" encoding="UTF-8"?>',
+             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    parts.append(f"<url><loc>{base}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>")
+    for a in rows:
+        slug = a.slug or _ensure_slug(db, a)
+        last = a.event_date or today
+        parts.append(
+            f"<url><loc>{base}/e/{slug}</loc>"
+            f"<lastmod>{last}</lastmod>"
+            f"<changefreq>weekly</changefreq><priority>0.8</priority></url>"
+        )
+    parts.append("</urlset>")
+    return Response(content="\n".join(parts), media_type="application/xml")

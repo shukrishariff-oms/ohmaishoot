@@ -2,18 +2,20 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, I
 from database import Base
 import datetime
 
-
 class Album(Base):
     __tablename__ = "albums"
 
     id = Column(Integer, primary_key=True, index=True)
     cover_image = Column(String, index=False)
     event_name = Column(String, index=True)
-    event_date = Column(String)  # 'YYYY-MM-DD'
+    event_date = Column(String)
     location = Column(String)
     album_url = Column(String)
     is_published = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    # SEO landing
+    slug = Column(String, unique=True, index=True, nullable=True)
+    description = Column(String, nullable=True)
 
 
 class AlbumClick(Base):
@@ -23,18 +25,17 @@ class AlbumClick(Base):
     id = Column(Integer, primary_key=True, index=True)
     album_id = Column(Integer, ForeignKey("albums.id", ondelete="CASCADE"), index=True)
     clicked_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
-    referrer = Column(String, nullable=True)        # placement on page: hero / list / direct
+    referrer = Column(String, nullable=True)       # placement: hero / list / event-page / direct
     user_agent = Column(String, nullable=True)
     ip_hash = Column(String, nullable=True, index=True)
-    device = Column(String, nullable=True)          # mobile / desktop / tablet / unknown
-    source = Column(String, nullable=True, index=True)  # instagram / google / direct / etc.
-
+    device = Column(String, nullable=True)         # mobile / desktop / tablet
+    source = Column(String, nullable=True)         # instagram / google / direct / etc.
 
 Index("ix_album_clicks_album_clicked", AlbumClick.album_id, AlbumClick.clicked_at)
 
 
 class PageView(Base):
-    """Tracks landings on public pages — denominator for conversion rate."""
+    """Public landing tracker — denominator for conversion rate."""
     __tablename__ = "page_views"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -43,4 +44,26 @@ class PageView(Base):
     user_agent = Column(String, nullable=True)
     ip_hash = Column(String, nullable=True, index=True)
     device = Column(String, nullable=True)
-    source = Column(String, nullable=True, index=True)
+    source = Column(String, nullable=True)
+
+
+class Lead(Base):
+    """Buyer leads — people who want their photos but didn't (yet) go to PhotoHawk.
+
+    Captured via the 'Beritahu saya' form on /e/:slug. Real revenue prep:
+    when /shop launches, Syuk has a warm list per event to email.
+    """
+    __tablename__ = "leads"
+
+    id = Column(Integer, primary_key=True, index=True)
+    album_id = Column(Integer, ForeignKey("albums.id", ondelete="SET NULL"), nullable=True, index=True)
+    name = Column(String, nullable=True)
+    email = Column(String, nullable=True, index=True)
+    phone = Column(String, nullable=True)
+    bib = Column(String, nullable=True)            # race bib number
+    note = Column(String, nullable=True)
+    interest = Column(String, nullable=True)       # 'face-search' | 'package' | 'reprint' | etc.
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    ip_hash = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
+    contacted = Column(Boolean, default=False)
