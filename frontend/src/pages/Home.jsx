@@ -152,17 +152,28 @@ export default function Home() {
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             {heroAlbum ? (
-              <a
-                href={heroAlbum.album_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => trackAlbumClick(heroAlbum.id, 'hero')}
-                onAuxClick={(e) => { if (e.button === 1) trackAlbumClick(heroAlbum.id, 'hero'); }}
-                className="group inline-flex items-center justify-center gap-2 bg-white text-black px-8 py-4 rounded-full font-bold hover:bg-gray-100 transition-all hover:-translate-y-0.5 shadow-2xl shadow-black/30"
-              >
-                <span>Cari Gambar {heroAlbum.event_name?.split(' ').slice(0, 3).join(' ')}</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-              </a>
+              heroAlbum.face_slug ? (
+                <Link
+                  to={`/shop?event=${heroAlbum.slug}`}
+                  onClick={() => trackAlbumClick(heroAlbum.id, 'hero')}
+                  className="group inline-flex items-center justify-center gap-2 bg-white text-black px-8 py-4 rounded-full font-bold hover:bg-gray-100 transition-all hover:-translate-y-0.5 shadow-2xl shadow-black/30"
+                >
+                  <span>Cari Gambar {heroAlbum.event_name?.split(' ').slice(0, 3).join(' ')}</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+              ) : (
+                <a
+                  href={heroAlbum.album_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => trackAlbumClick(heroAlbum.id, 'hero')}
+                  onAuxClick={(e) => { if (e.button === 1) trackAlbumClick(heroAlbum.id, 'hero'); }}
+                  className="group inline-flex items-center justify-center gap-2 bg-white text-black px-8 py-4 rounded-full font-bold hover:bg-gray-100 transition-all hover:-translate-y-0.5 shadow-2xl shadow-black/30"
+                >
+                  <span>Cari Gambar {heroAlbum.event_name?.split(' ').slice(0, 3).join(' ')}</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                </a>
+              )
             ) : (
               <a
                 href="#events"
@@ -266,16 +277,11 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-            {albums.map((album, idx) => (
-              <a
-                key={album.id}
-                href={album.album_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => trackAlbumClick(album.id, 'list')}
-                onAuxClick={(e) => { if (e.button === 1) trackAlbumClick(album.id, 'list'); }}
-                className="group bg-white rounded-2xl overflow-hidden flex flex-col border border-gray-200/60 shadow-sm hover:shadow-2xl hover:shadow-black/15 hover:-translate-y-1.5 transition-all duration-500"
-              >
+            {albums.map((album, idx) => {
+              const useShop = !!album.face_slug;
+              const cardClass = "group bg-white rounded-2xl overflow-hidden flex flex-col border border-gray-200/60 shadow-sm hover:shadow-2xl hover:shadow-black/15 hover:-translate-y-1.5 transition-all duration-500";
+              const inner = (
+                <>
                 <div className="relative aspect-[4/3] overflow-hidden bg-zinc-900">
                   <img
                     src={getCoverUrl(album.cover_image)}
@@ -294,6 +300,13 @@ export default function Home() {
                   {idx === 0 && (
                     <div className="absolute top-4 right-4 bg-emerald-500 text-white px-2.5 py-1 rounded-md font-black text-[10px] tracking-widest uppercase shadow-lg">
                       Latest
+                    </div>
+                  )}
+
+                  {/* Face-search badge */}
+                  {useShop && (
+                    <div className="absolute top-4 right-4 mt-7 bg-blue-500 text-white px-2.5 py-1 rounded-md font-black text-[10px] tracking-widest uppercase shadow-lg flex items-center gap-1">
+                      <Sparkles className="w-3 h-3" /> Face Search
                     </div>
                   )}
 
@@ -317,14 +330,37 @@ export default function Home() {
                   </div>
 
                   <div className="flex items-center justify-between gap-2 pt-4 border-t border-gray-100">
-                    <span className="text-sm font-bold text-black">View Photos</span>
+                    <span className="text-sm font-bold text-black">{useShop ? 'Cari Muka Saya' : 'View Photos'}</span>
                     <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center group-hover:bg-emerald-500 transition-colors">
                       <ArrowRight className="w-4 h-4 text-white group-hover:translate-x-0.5 transition-transform" />
                     </div>
                   </div>
                 </div>
-              </a>
-            ))}
+                </>
+              );
+              return useShop ? (
+                <Link
+                  key={album.id}
+                  to={`/shop?event=${album.slug}`}
+                  onClick={() => trackAlbumClick(album.id, 'list')}
+                  className={cardClass}
+                >
+                  {inner}
+                </Link>
+              ) : (
+                <a
+                  key={album.id}
+                  href={album.album_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => trackAlbumClick(album.id, 'list')}
+                  onAuxClick={(e) => { if (e.button === 1) trackAlbumClick(album.id, 'list'); }}
+                  className={cardClass}
+                >
+                  {inner}
+                </a>
+              );
+            })}
           </div>
         )}
       </main>
