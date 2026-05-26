@@ -1,17 +1,25 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Camera, Upload, Loader2, CheckCircle2, X, ArrowRight, Tag, Lock } from 'lucide-react';
+import { Camera, Upload, Loader2, CheckCircle2, X, ArrowRight, Tag, Lock, Sparkles } from 'lucide-react';
 import { getPublishedAlbums } from '../services/api';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 const STEPS = ['pilih-event', 'upload-selfie', 'pilih-gambar', 'maklumat', 'bayar'];
 
+// Auto-pick best tier based on photo count
+const autoTier = (n) => (n <= 1 ? 'single' : n <= 5 ? 'pack5' : 'all');
+
 export default function Shop() {
   const [params] = useSearchParams();
   const initialEvent = params.get('event') || '';
+  const initialPhotosStr = params.get('photos') || '';
+  const initialPhotoGuids = initialPhotosStr ? initialPhotosStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const isDeepLink = !!initialEvent && initialPhotoGuids.length > 0;
 
-  const [step, setStep] = useState(initialEvent ? 'upload-selfie' : 'pilih-event');
+  const [step, setStep] = useState(
+    isDeepLink ? 'maklumat' : (initialEvent ? 'upload-selfie' : 'pilih-event')
+  );
   const [albums, setAlbums] = useState([]);
   const [selectedAlbum, setSelectedAlbum] = useState(null);
 
@@ -22,8 +30,8 @@ export default function Shop() {
   const [searchError, setSearchError] = useState('');
 
   const [pricing, setPricing] = useState({});
-  const [pkg, setPkg] = useState('pack5');
-  const [picked, setPicked] = useState(new Set());
+  const [pkg, setPkg] = useState(isDeepLink ? autoTier(initialPhotoGuids.length) : 'pack5');
+  const [picked, setPicked] = useState(new Set(isDeepLink ? initialPhotoGuids : []));
 
   const [buyer, setBuyer] = useState({ name: '', email: '', phone: '', bib: '' });
   const [submitting, setSubmitting] = useState(false);
@@ -35,13 +43,18 @@ export default function Shop() {
     fetch(`${API_URL}/shop/pricing`).then(r => r.json()).then(setPricing).catch(() => {});
   }, []);
 
-  // Pre-select album from URL param
+  // Pre-select album from URL param — match by slug OR face_slug (deep-link from face.*)
   useEffect(() => {
     if (initialEvent && albums.length) {
-      const a = albums.find(x => x.slug === initialEvent);
-      if (a) setSelectedAlbum(a);
+      const a = albums.find(x => x.slug === initialEvent || x.face_slug === initialEvent);
+      if (a) {
+        setSelectedAlbum(a);
+      } else if (isDeepLink) {
+        // Album not found for deep-link → fallback to landing
+        setStep('pilih-event');
+      }
     }
-  }, [initialEvent, albums]);
+  }, [initialEvent, albums, isDeepLink]);
 
   const handleSelfieChange = (e) => {
     const f = e.target.files[0];
@@ -291,7 +304,18 @@ export default function Shop() {
 
         {step === 'maklumat' && (
           <div className="max-w-md mx-auto">
-            <button onClick={() => setStep('pilih-gambar')} className="text-sm text-gray-500 hover:text-black mb-4">← Pilih gambar</button>
+            {!isDeepLink && (
+              <button onClick={() => setStep('pilih-gambar')} className="text-sm text-gray-500 hover:text-black mb-4">← Pilih gambar</button>
+            )}
+            {isDeepLink && (
+              <div className="mb-6 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-2xl p-4 flex items-start gap-3">
+                <Sparkles className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <div className="font-bold text-gray-900">{picked.size} gambar dipilih dari face search</div>
+                  <div className="text-gray-600 mt-0.5">{selectedAlbum?.event_name || 'Event'}</div>
+                </div>
+              </div>
+            )}
             <h1 className="text-3xl font-black mb-2">Maklumat Anda</h1>
             <p className="text-gray-500 mb-6">Untuk hantar gambar selepas pembayaran.</p>
 
