@@ -85,3 +85,42 @@ class Lead(Base):
     ip_hash = Column(String, nullable=True)
     user_agent = Column(String, nullable=True)
     contacted = Column(Boolean, default=False)
+
+
+class Order(Base):
+    """Buyer order for face-search photo bundles."""
+    __tablename__ = "orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    external_ref = Column(String, unique=True, index=True)  # our internal UUID
+    album_id = Column(Integer, ForeignKey("albums.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    # buyer
+    name = Column(String, nullable=True)
+    email = Column(String, index=True)
+    phone = Column(String, nullable=True)
+    bib = Column(String, nullable=True)
+
+    # search payload
+    selfie_hash = Column(String, nullable=True)  # sha256 of selfie bytes (dedup/audit)
+    photo_guids = Column(String)                 # JSON list of guid strings
+    photo_count = Column(Integer, default=0)
+
+    # pricing
+    package = Column(String)                     # 'single' | 'pack5' | 'all'
+    amount_rm = Column(Integer)                  # ringgit (whole, e.g. 30 for RM30)
+    currency = Column(String, default="MYR")
+
+    # payment
+    bill_code = Column(String, nullable=True, index=True)  # toyyibpay billCode
+    payment_url = Column(String, nullable=True)
+    status = Column(String, default="pending", index=True)  # pending | paid | failed | refunded
+    paid_at = Column(DateTime, nullable=True)
+
+    # delivery
+    download_count = Column(Integer, default=0)
+    delivered_at = Column(DateTime, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    ip_hash = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)

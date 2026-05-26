@@ -3,10 +3,13 @@ import re
 import shutil
 import uuid
 import hashlib
+import json
+import logging
 from typing import List, Optional
 from datetime import datetime, timedelta, date
 from urllib.parse import urlparse
 
+import httpx
 from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile, Form, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
@@ -1116,3 +1119,316 @@ def sitemap(db: Session = Depends(get_db)):
         )
     parts.append("</urlset>")
     return Response(content="\n".join(parts), media_type="application/xml")
+
+
+# ── /shop: face-search MVP ────────────────────────────────────────
+import toyyibpay
+
+FACES_BASE_URL = os.getenv("FACES_BASE_URL", "https://face.ohmaishoot.com").rstrip("/")
+FACES_DOWNLOAD_SECRET = os.getenv("FACES_DOWNLOAD_SECRET", "").strip()
+PUBLIC_URL = os.getenv("PUBLIC_URL", "https://ohmaishoot.com").rstrip("/")
+
+# Pricing — Tier B
+PRICING = {
+    "single": {"label": "1 keping", "amount": 8, "max_photos": 1},
+    "pack5":  {"label": "5 keping", "amount": 30, "max_photos": 5},
+    "all":    {"label": "Semua gambar", "amount": 50, "max_photos": 9999},
+}
+
+
+@app.post("/shop/search")
+async def shop_search(
+    selfie: UploadFile = File(...),
+    album_id: Optional[int] = Form(None),
+    threshold: float = Form(0.7),
+    db: Session = Depends(get_db),
+):
+    """Proxy selfie to faces.ohmaishoot.com/api/search and return matched groups.
+
+    Buyer flow:
+      1. POST selfie + album_id (or event-wide if not set)
+      2. We forward to faces backend
+      3. Return watermarked thumbnail grid for buyer to pick
+    """
+    selfie_bytes = await selfie.read()
+    if not selfie_bytes:
+        raise HTTPException(status_code=400, detail="Selfie kosong")
+
+    files = {"selfie": (selfie.filename or "selfie.jpg", selfie_bytes, selfie.content_type or "image/jpeg")}
+    data = {"threshold": str(threshold)}
+    if album_id is not None:
+        # Map ohmaishoot album_id -> faces event_slug via face_slug
+        a = db.query(models.Album).filter(models.Album.id == album_id).first()
+        if a and a.face_slug:
+            # faces accepts album_id, but we need to call with their album_id, not ours.
+            # Fall back to event_slug-based search by fetching faces album metadata first.
+            try:
+                meta = httpx.get(f"{FACES_BASE_URL}/api/album/{a.face_slug}", timeout=10.0)
+                if meta.status_code == 200:
+                    data["album_id"] = str(meta.json().get("album_id"))
+            except Exception:
+                pass
+
+    try:
+        r = httpx.post(f"{FACES_BASE_URL}/api/search", files=files, data=data, timeout=30.0)
+        r.raise_for_status()
+        result = r.json()
+    except httpx.HTTPStatusError as e:
+        # forward upstream error message
+        try:
+            return JSONResponse(status_code=e.response.status_code, content=e.response.json())
+        except Exception:
+            raise HTTPException(status_code=e.response.status_code, detail=str(e))
+    except Exception as e:
+        logging.exception("faces search failed")
+        raise HTTPException(status_code=503, detail="Face search service tidak tersedia")
+
+    # Rewrite thumbnail/preview URLs to absolute (faces serves relative /thumbs/...)
+    for grp in result.get("groups", []):
+        for m in grp.get("matches", []):
+            for k in ("thumbnail_url", "preview_url"):
+                v = m.get(k)
+                if v and v.startswith("/"):
+                    m[k] = f"{FACES_BASE_URL}{v}"
+    # Hash selfie for audit (don't store the image)
+    result["_selfie_sha"] = hashlib.sha256(selfie_bytes).hexdigest()[:16]
+    return result
+
+
+class CreateOrderIn(BaseModel):
+    album_id: int
+    package: str          # 'single' | 'pack5' | 'all'
+    photo_guids: List[str]
+    name: str
+    email: str
+    phone: Optional[str] = None
+    bib: Optional[str] = None
+    selfie_sha: Optional[str] = None
+
+
+@app.post("/shop/orders")
+def create_order(payload: CreateOrderIn, request: Request, db: Session = Depends(get_db)):
+    """Create order + Toyyibpay bill. Returns payment_url for redirect."""
+    pkg = PRICING.get(payload.package)
+    if not pkg:
+        raise HTTPException(status_code=400, detail="Pakej tidak sah")
+    if not payload.photo_guids:
+        raise HTTPException(status_code=400, detail="Tiada gambar dipilih")
+    if len(payload.photo_guids) > pkg["max_photos"]:
+        raise HTTPException(status_code=400, detail=f"Pakej {pkg['label']} max {pkg['max_photos']} gambar")
+    if not payload.email or "@" not in payload.email:
+        raise HTTPException(status_code=400, detail="Email tidak sah")
+
+    a = db.query(models.Album).filter(models.Album.id == payload.album_id).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Album tidak dijumpai")
+
+    if not toyyibpay.is_configured():
+        raise HTTPException(status_code=503, detail="Payment gateway belum dikonfigurasi")
+
+    ext_ref = f"OMS-{uuid.uuid4().hex[:10].upper()}"
+
+    order = models.Order(
+        external_ref=ext_ref,
+        album_id=a.id,
+        name=payload.name[:100],
+        email=payload.email[:200],
+        phone=(payload.phone or "")[:30],
+        bib=(payload.bib or "")[:30],
+        selfie_hash=payload.selfie_sha,
+        photo_guids=json.dumps(payload.photo_guids),
+        photo_count=len(payload.photo_guids),
+        package=payload.package,
+        amount_rm=pkg["amount"],
+        currency="MYR",
+        status="pending",
+        ip_hash=hashlib.sha256(((request.client.host if request.client else "") + IP_HASH_SALT).encode()).hexdigest()[:32],
+        user_agent=(request.headers.get("user-agent") or "")[:300],
+    )
+    db.add(order)
+    db.commit()
+    db.refresh(order)
+
+    try:
+        bill = toyyibpay.create_bill(
+            name=f"OhMaiShoot {pkg['label']}"[:30],
+            description=f"Gambar {a.event_name[:60]} ({len(payload.photo_guids)} keping)",
+            amount_rm=pkg["amount"],
+            customer_email=payload.email,
+            customer_name=payload.name,
+            customer_phone=payload.phone or "",
+            return_url=f"{PUBLIC_URL}/shop/return?ref={ext_ref}",
+            callback_url=f"{PUBLIC_URL}/api/shop/callback",
+            external_ref=ext_ref,
+        )
+    except Exception as e:
+        logging.exception("toyyibpay createBill failed")
+        order.status = "failed"
+        db.commit()
+        raise HTTPException(status_code=503, detail=f"Gagal cipta bil: {e}")
+
+    order.bill_code = bill["bill_code"]
+    order.payment_url = bill["payment_url"]
+    db.commit()
+
+    return {
+        "external_ref": ext_ref,
+        "payment_url": bill["payment_url"],
+        "amount_rm": pkg["amount"],
+        "package_label": pkg["label"],
+    }
+
+
+@app.post("/shop/callback")
+async def shop_callback(request: Request, db: Session = Depends(get_db)):
+    """Toyyibpay calls this when payment status changes.
+
+    Form fields per Toyyibpay docs:
+      refno, status (1=success), reason, billcode, order_id, amount, transaction_time
+    We verify by re-querying getBillTransactions, then mark order paid.
+    """
+    form = await request.form()
+    bill_code = form.get("billcode") or ""
+    ext_ref = form.get("order_id") or ""
+    status_id = str(form.get("status") or "")
+
+    if not bill_code or not ext_ref:
+        return {"ok": False, "reason": "missing fields"}
+
+    order = db.query(models.Order).filter(models.Order.external_ref == ext_ref).first()
+    if not order:
+        return {"ok": False, "reason": "order not found"}
+
+    # Verify by querying Toyyibpay directly (don't trust callback alone)
+    try:
+        paid = toyyibpay.is_paid(bill_code)
+    except Exception:
+        paid = False
+
+    if paid and order.status != "paid":
+        order.status = "paid"
+        order.paid_at = datetime.utcnow()
+        db.commit()
+    elif status_id == "3" and order.status == "pending":
+        order.status = "failed"
+        db.commit()
+
+    return {"ok": True, "status": order.status}
+
+
+@app.get("/shop/orders/{ext_ref}")
+def get_order(ext_ref: str, db: Session = Depends(get_db)):
+    """Public order lookup by external_ref. Used by /shop/return page."""
+    order = db.query(models.Order).filter(models.Order.external_ref == ext_ref).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order tidak dijumpai")
+
+    # If still pending, re-check Toyyibpay (in case callback was delayed/missed)
+    if order.status == "pending" and order.bill_code:
+        try:
+            if toyyibpay.is_paid(order.bill_code):
+                order.status = "paid"
+                order.paid_at = datetime.utcnow()
+                db.commit()
+        except Exception:
+            pass
+
+    pkg = PRICING.get(order.package, {})
+    return {
+        "external_ref": order.external_ref,
+        "status": order.status,
+        "amount_rm": order.amount_rm,
+        "package": order.package,
+        "package_label": pkg.get("label", order.package),
+        "photo_count": order.photo_count,
+        "email": order.email,
+        "paid_at": order.paid_at.isoformat() if order.paid_at else None,
+        "created_at": order.created_at.isoformat(),
+        # Only expose download endpoint when paid
+        "downloads_available": order.status == "paid",
+    }
+
+
+@app.get("/shop/orders/{ext_ref}/download")
+def download_order_photos(ext_ref: str, db: Session = Depends(get_db)):
+    """Stream a zip of full-res photos for a paid order.
+
+    Pulls from faces.ohmaishoot.com/api/internal/photo/<guid>/original
+    using FACES_DOWNLOAD_SECRET. For MVP: streams photos one-by-one as redirect.
+    NOTE: requires shuzk to deploy the download endpoint (in progress).
+    """
+    order = db.query(models.Order).filter(models.Order.external_ref == ext_ref).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order tidak dijumpai")
+    if order.status != "paid":
+        raise HTTPException(status_code=403, detail="Order belum dibayar")
+    if not FACES_DOWNLOAD_SECRET:
+        raise HTTPException(status_code=503, detail="Download backend belum siap")
+
+    guids = json.loads(order.photo_guids or "[]")
+    # Increment download counter
+    order.download_count = (order.download_count or 0) + 1
+    if not order.delivered_at:
+        order.delivered_at = datetime.utcnow()
+    db.commit()
+
+    # Return list of signed download URLs (frontend triggers each)
+    urls = [
+        {
+            "guid": g,
+            "url": f"{FACES_BASE_URL}/api/internal/photo/{g}/original",
+            "auth_header": f"Bearer {FACES_DOWNLOAD_SECRET}",  # frontend must NOT use this — proxy needed
+        }
+        for g in guids
+    ]
+    # For now, frontend hits THIS endpoint and we proxy each download.
+    # Returning structure tells frontend to call /shop/orders/<ref>/photos/<guid>
+    return {
+        "external_ref": ext_ref,
+        "photo_count": len(guids),
+        "photos": [{"guid": g, "download_url": f"/api/shop/orders/{ext_ref}/photos/{g}"} for g in guids],
+    }
+
+
+@app.get("/shop/orders/{ext_ref}/photos/{guid}")
+def stream_paid_photo(ext_ref: str, guid: str, db: Session = Depends(get_db)):
+    """Server-side proxy: stream a paid photo from faces backend to buyer."""
+    order = db.query(models.Order).filter(models.Order.external_ref == ext_ref).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order tidak dijumpai")
+    if order.status != "paid":
+        raise HTTPException(status_code=403, detail="Order belum dibayar")
+    if not FACES_DOWNLOAD_SECRET:
+        raise HTTPException(status_code=503, detail="Download backend belum siap")
+
+    guids = set(json.loads(order.photo_guids or "[]"))
+    if guid not in guids:
+        raise HTTPException(status_code=403, detail="Gambar tidak dalam order ini")
+
+    from fastapi.responses import StreamingResponse
+    upstream_url = f"{FACES_BASE_URL}/api/internal/photo/{guid}/original"
+    headers = {"Authorization": f"Bearer {FACES_DOWNLOAD_SECRET}"}
+    try:
+        client = httpx.Client(timeout=60.0)
+        r = client.get(upstream_url, headers=headers, follow_redirects=True)
+        if r.status_code != 200:
+            raise HTTPException(status_code=502, detail=f"Faces backend returned {r.status_code}")
+        # Forward content + filename
+        cd = r.headers.get("content-disposition", f'attachment; filename="{guid}.jpg"')
+        ct = r.headers.get("content-type", "image/jpeg")
+        return Response(content=r.content, media_type=ct, headers={"Content-Disposition": cd})
+    except HTTPException:
+        raise
+    except Exception:
+        logging.exception("photo stream failed")
+        raise HTTPException(status_code=502, detail="Gagal ambil gambar dari backend")
+
+
+# ── Pricing exposure for frontend ─────────────────────────────────
+@app.get("/shop/pricing")
+def shop_pricing():
+    return PRICING
+
+
+# Need to import JSONResponse for shop_search error pass-through
+from fastapi.responses import JSONResponse
