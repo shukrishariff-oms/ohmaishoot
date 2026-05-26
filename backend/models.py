@@ -8,7 +8,7 @@ class Album(Base):
     id = Column(Integer, primary_key=True, index=True)
     cover_image = Column(String, index=False)
     event_name = Column(String, index=True)
-    event_date = Column(String)
+    event_date = Column(String)  # Stored as string 'YYYY-MM-DD' for simplicity
     location = Column(String)
     album_url = Column(String)
     is_published = Column(Boolean, default=False)
@@ -16,6 +16,8 @@ class Album(Base):
     # SEO landing
     slug = Column(String, unique=True, index=True, nullable=True)
     description = Column(String, nullable=True)
+    # Trust counter
+    photo_count = Column(Integer, default=0)
 
 
 class AlbumClick(Base):
