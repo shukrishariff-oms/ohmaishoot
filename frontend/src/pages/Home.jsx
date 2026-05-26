@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getPublishedAlbums, getCoverUrl } from '../services/api';
+import { getPublishedAlbums, getCoverUrl, trackAlbumClick } from '../services/api';
 import { Camera, MapPin, Calendar, ArrowRight, Aperture, Mail, ExternalLink, ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -146,6 +146,8 @@ export default function Home() {
                 href={heroAlbum.album_url}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => trackAlbumClick(heroAlbum.id, 'hero')}
+                onAuxClick={(e) => { if (e.button === 1) trackAlbumClick(heroAlbum.id, 'hero'); }}
                 className="group inline-flex items-center justify-center gap-2 bg-white text-black px-8 py-4 rounded-full font-bold hover:bg-gray-100 transition-all hover:-translate-y-0.5 shadow-2xl shadow-black/30"
               >
                 <span>Cari Gambar {heroAlbum.event_name?.split(' ').slice(0, 3).join(' ')}</span>
@@ -240,6 +242,8 @@ export default function Home() {
                 href={album.album_url}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => trackAlbumClick(album.id, 'list')}
+                onAuxClick={(e) => { if (e.button === 1) trackAlbumClick(album.id, 'list'); }}
                 className="group bg-white rounded-2xl overflow-hidden flex flex-col border border-gray-200/60 shadow-sm hover:shadow-2xl hover:shadow-black/15 hover:-translate-y-1.5 transition-all duration-500"
               >
                 <div className="relative aspect-[4/3] overflow-hidden bg-zinc-900">

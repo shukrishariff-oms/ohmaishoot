@@ -8,8 +8,9 @@ import {
   deleteAlbum, 
   getCoverUrl 
 } from '../services/api';
-import { Lock, Plus, Upload, Link as LinkIcon, MapPin, Calendar, Type, Loader2, Image as ImageIcon, Eye, EyeOff, Trash2, Edit2, LogOut } from 'lucide-react';
+import { Lock, Plus, Upload, Link as LinkIcon, MapPin, Calendar, Type, Loader2, Image as ImageIcon, Eye, EyeOff, Trash2, Edit2, LogOut, BarChart3, FolderOpen } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import Dashboard from './Dashboard';
 
 export default function Admin() {
   const [token, setToken] = useState(localStorage.getItem('token'));
@@ -20,6 +21,7 @@ export default function Admin() {
 
   const [albums, setAlbums] = useState([]);
   const [fetchingAlbums, setFetchingAlbums] = useState(false);
+  const [tab, setTab] = useState('dashboard'); // 'dashboard' | 'events'
   
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -204,7 +206,37 @@ export default function Admin() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 mt-12">
+      <main className="max-w-6xl mx-auto px-6 mt-8">
+        {/* Tab switcher */}
+        <div className="flex items-center gap-2 mb-8 bg-white border border-gray-200 rounded-xl p-1.5 w-fit shadow-sm">
+          <button
+            onClick={() => setTab('dashboard')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
+              tab === 'dashboard'
+                ? 'bg-black text-white shadow'
+                : 'text-gray-600 hover:text-black'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            Statistik
+          </button>
+          <button
+            onClick={() => setTab('events')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
+              tab === 'events'
+                ? 'bg-black text-white shadow'
+                : 'text-gray-600 hover:text-black'
+            }`}
+          >
+            <FolderOpen className="w-4 h-4" />
+            Event Albums
+          </button>
+        </div>
+
+        {tab === 'dashboard' && <Dashboard />}
+
+        {tab === 'events' && (
+        <>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <h2 className="text-3xl font-black text-gray-900">Event Albums</h2>
           <button 
@@ -297,6 +329,8 @@ export default function Admin() {
               </table>
             </div>
           </div>
+        )}
+        </>
         )}
       </main>
 

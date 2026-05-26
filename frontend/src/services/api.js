@@ -76,3 +76,26 @@ export const deleteAlbum = async (id) => {
 export const getCoverUrl = (filename) => {
   return `${API_URL}/covers/${filename}`;
 };
+
+export const trackAlbumClick = async (albumId, source = 'direct') => {
+  // Fire-and-forget; never block the redirect on this.
+  try {
+    // Use sendBeacon if available so it survives navigation away.
+    if (navigator.sendBeacon) {
+      const blob = new Blob([JSON.stringify({ source })], { type: 'application/json' });
+      navigator.sendBeacon(`${API_URL}/albums/${albumId}/click`, blob);
+      return;
+    }
+    await api.post(`/albums/${albumId}/click`, { source });
+  } catch (_) { /* swallow */ }
+};
+
+export const getStatsOverview = async () => {
+  const response = await api.get('/admin/stats/overview');
+  return response.data;
+};
+
+export const getStatsAlbums = async (days = 30, limit = 20) => {
+  const response = await api.get('/admin/stats/albums', { params: { days, limit } });
+  return response.data;
+};
